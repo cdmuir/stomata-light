@@ -1,0 +1,1316 @@
+\documentclass[11pt, oneside]{article}
+
+\usepackage[margin=1in]{geometry} % to adjust margins
+  \geometry{letterpaper}
+
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{authblk} % for title page
+\usepackage{booktabs}
+\usepackage[labelfont = {sf, bf}, textfont = sf, format = plain]{caption}
+\usepackage{fancyhdr}
+  \pagestyle{fancy}
+  \renewcommand{\headrulewidth}{0pt} % remove line below header
+  \lhead{\textit{Is amphistomy optimal in high light?}} % running head
+  \chead{}
+  \rhead{}
+\usepackage{footnote}
+  \makesavenoteenv{tabular}
+\usepackage{lineno}
+  \linenumbers
+\usepackage{longtable}
+\usepackage{natbib}
+\usepackage[parfill]{parskip}
+\usepackage{setspace}
+  \setstretch{1.5}
+% \usepackage{soul,color} % for text highlighing
+\usepackage{Sweave}
+\usepackage{tabularx}
+\usepackage{tikz} % for checkmark and shapes
+
+% Make helvetica the default sans-serif font
+\renewcommand\sfdefault{phv}
+
+% Package command for citing R packages
+\newcommand{\pkg}[1]{{\fontseries{b}\selectfont #1}}
+
+% \code{...} command for "code"-like text
+\newcommand{\code}[1]{{\texttt{#1}}}
+
+% shapes for figure legends
+\newcommand{\mytriangle}[1]{\tikz{\filldraw[draw=black,fill=#1] (0,0) --
+(0.6em,0) -- (0.3em,0.6em);}}
+
+% Commands for common abbreviations
+\newcommand{\aunit}{$\mu \textrm{mol~CO}_2~\textrm{m}^{-2}~\textrm{s}^{-1}$}
+\newcommand{\gcunit}{$\mu \textrm{mol~CO}_2~\textrm{m}^{-2}~\textrm{s}^{-1}~\textrm{Pa}^{-1}$}
+\newcommand{\gwunit}{$\mu \textrm{mol~H}_2 \textrm{O~m}^{-2}~\textrm{s}^{-1}~\textrm{Pa}^{-1}$}
+\newcommand{\lwunit}{$\textrm{mol~H}_2 \textrm{O~mol}^{-1}~\textrm{CO}_2$}
+\newcommand{\lsunit}{$\textrm{mol~H}_2 \textrm{O~Pa}^{-1}~\textrm{mol}^{-1}~\textrm{CO}_2$}
+\newcommand{\leafoptimizer}{\pkg{leafoptimizer}}
+\newcommand{\photo}{\pkg{photosynthesis}}
+\newcommand{\ppfdunit}{$\mu \textrm{mol~quanta~m}^{-2}~\textrm{s}^{-1}$}
+\newcommand{\tealeaves}{\pkg{tealeaves}}
+\newcommand{\tleaf}{$T_\mathrm{leaf}$}
+\newcommand{\tref}{25 $^\circ$C}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+\title{Is amphistomy an adaptation to high light? Optimality models of stomatal traits along light gradients}
+\author{Christopher D. Muir$^1$}
+\date{} % delete this line to display the current date
+
+\maketitle
+
+$^1$ Department of Botany, University of Hawai'i, Honolulu, Hawai'i 96822, USA \\
+cdmuir@hawaii.edu \\
++1 (808) 956-6704 \\
+3190 Maile Way \\
+Room 101 \\
+Honolulu, HI 96822 \\
+
+<<Import-objects, echo = FALSE, results = hide>>=
+
+  setwd("..")
+  source("r/header.R")
+
+  import2ms("objects")
+  setwd("ms")
+
+  model1_output <- read_csv("objects/model1-output.csv")
+  model2_output <- read_csv("objects/model2-output.csv")
+  model3_output <- read_csv("objects/model3-output.csv")
+
+  m1_leafsize <- sort(unique(m1_vars$leafsize))
+  m2_SR <- sort(unique(m2_vars$SR))
+
+@
+
+\section*{Abstract}
+
+Stomata regulate the supply of CO$_2$ for photosynthesis and the rate of water loss out of the leaf. The presence of stomata on both leaf surfaces, termed amphistomy, increases photosynthetic rate, is common in plants from high light habitats, and rare otherwise. In this study I use optimality models based on leaf energy budget and photosynthetic models to ask why amphistomy is common in high light habitats. I developed an R package \leafoptimizer~to solve for stomatal traits that optimally balance carbon gain with water loss in a given environment. The model predicts that amphistomy is common in high light because its marginal effect on carbon gain is greater than in the shade, but only if the costs of amphistomy are also lower under high light than in the shade. More generally, covariation between costs and benefits may explain why stomatal and other traits form discrete phenotypic clusters.
+
+\section*{Keywords}
+
+amphistomatous, energy balance, hypostomatous, leaf temperature, light, optimality, photosynthesis, stomata, stomatal conductance, stomatal ratio
+
+% Manuscraps:
+
+% Biological systems are recognized less for their unity than for their diversity.
+% Distinguishing between these hypotheses address a really fundamental problem in phenotypic evolution: is the distribution of phenotypes driven by the external environment or does the interaction between organisms and the environment produce an adaptive landscape with discrete peaks?
+
+%--------------------------------------------------
+% Introduction
+%--------------------------------------------------
+
+\section*{Introduction}
+
+Stomata are microscopic pores formed by a pair of guard cells primarily located on the leaf surface of land plants. Their density and aperture on a leaf control the CO$_2$ supply to leaf interiors and the rate of water lost through transpiration \citep[recently reviewed in][]{Sack_Buckley_2016}. Higher densities and/or larger pores allow more CO$_2$ into the leaf, increasing photosynthetic rate, but also increasing transpiration \citep{Farquhar_Sharkey_1982}. As the balance of CO$_2$ and water demand and supply shifts through time and space, stomata respond over minutes to daily environmental variation, throughout the life of a single plant, and over long periods of evolutionary time \citep{Wolfe_1971, Woodward_1987, Royer_2001, Beerling_Royer_2011, Milla_etal_2013, McElwain_Steinthorsdottir_2017}.
+
+A less appreciated aspect of stomata is that most leaves have all their stomata on the lower (usually abaxial) surface of the leaf, termed hypostomy, while some have them at equal densities on both surfaces, termed amphistomy \citep{Metcalfe_Chalk_1950, Peat_Fitter_1994b, Muir_2015, Drake_etal_2019}. Although amphistomy is rare in general, it is common among high light plants \citep{Salisbury_1927, Mott_etal_1982, Peat_Fitter_1994b, Bucher_etal_2017, Jordan_etal_2014, Muir_2018, Drake_etal_2019}. Why is amphistomy common in high light habitats but rare elsewhere? Amphistomy creates a second parallel pathway for CO$_2$ diffusion into the leaf, which should increase photosynthesis especially when there is a lot of resistance to diffusion in the mesophyll \citep{Parkhurst_1978, Gutschick_1984b, Jones_1985, Parkhurst_Mott_1990}. We might then expect amphistomy to be common, but it is not, implying some cost of amphistomy. Amphistomy also increases transpiration by forming a second boundary layer conductance for water transport \citep[this study]{Foster_Smith_1986}, but it is not clear if this tradeoff, or some other, explains variation in stomatal ratio. To evaluate these hypotheses and generate testable predictions, we need theory to predict how trait optima change across environments, both plastically and adaptively. These are classic evolutionary questions.
+
+Stomata are also a fascinating and useful system for understanding phenotypic evolution. Land plants, like all major groups, can thrive in vastly different niches because of their diverse forms and functions, adaptations that evolved over millions of years. Less appreciated, but equally important in the study of phenotypic evolution, is that organisms occupy a small fraction of the feasible phenotypic space that could evolve in principle. This is true of stomata, as I will explain below. Why do some trait values rarely or never evolve? Three broad hypotheses explain why certain phenotypes can be rare or even absent from nature: 1) \textbf{Developmental inaccessibility} - a trait value is physically possible and would be favored by selection, but cannot evolve because the developmental system prevents the right genetic variation from arising; 2) \textbf{Rare environments} - a trait value is physically possible and would be favored by selection, but is rare because the environment that favors it is itself rare; and 3) \textbf{Selection} - a trait value is physically possible but is universally less fit than other trait values. Often, these hypotheses might be referred to as different phenotypic constraints \citep{Arnold_1992}, but this terminology can be fraught with confusion and competing interpretations. In this paper, I focus on evaluating hypothesis 3, but address others throughout. It is not hard to imagine that if there are discrete niches in the environment, then trait values should cluster around values best suited to those niches (Fig. \ref{fig:fig1}D-F). It is more difficult to explain why trait values would cluster when the underlying environment is continuous because this implies that intermediate phenotypes are not favored in intermediate environments (Fig. \ref{fig:fig1}G-I). This pattern would imply a nonlinear relationship between trait optima and environmental gradients.
+
+The ratio of stomatal densities on the upper and lower leaf surface (hereafter termed ``stomatal ratio''), is a great system for studying why traits cluster because the distribution of this trait is highly clustered and we have mathematical tools to predict the optimal trait value in different environments. Stomatal ratio forms three main trait clusters in angiosperms \citep{Muir_2015}: hypostomy (stomatal ratio = 0); amphistomy (stomatal ratio = 0.5); and hyperstomy (stomatal ratio = 1). There are relatively few species with intermediate values, though they do exist and there is genetic variation, suggesting that development does not preclude the evolution of intermediate trait value \citep{Muir_etal_2014b, Muir_etal_2014a, Muir_etal_2015}. Few plants (mostly aquatic) are hyperstomatous, so I focus on the ``bimodal'' pattern describing two clusters, hypo- and amphistomy. Intermediate environments that favor intermediate stomatal ratios might be rare (Fig. \ref{fig:fig1}D-F) or there may be a threshold-like relationship between the environment the trait optimum (Fig. \ref{fig:fig1}H). To evaluate these hypotheses requires predictions about the relationship between the environment and trait optima.
+
+Optimality models provide an independent way to predict the relationship between environments and trait optima against which we can compare observations of the natural world. Optimality models also have a long history in successfully explaining plant form and function \citep{Givnish_1986, Givnish_1987}, especially with stomata \citep{Cowan_Farquhar_1977, Buckley_etal_2017b}. Optimality models based on physics and chemistry are combined with a ``goal'' function to generate testable predictions about how traits \textit{should} vary if organisms are adapted to their environment. If optimality models predict phenotypes that do not exist in nature, this might suggest developmental inaccessibility or rare environments prevent the phenotype from evolving. Optimality models may also make testable predictions about conditions in which selection drives phenotypic clustering.
+
+In this study, I use optimality models to predict stomatal conductance and stomatal ratio across light gradients to evaluate under what conditions, if any, we would expect phenotypic clustering to evolve along a continuous environmental gradient (hypothesis 3). I also evaluate models on their ability to predict other, independent empirical observations. Ideally, a single model should account for all of the following observations: 1) amphistomy is rare \citep{Metcalfe_Chalk_1950, Peat_Fitter_1994b, Muir_2015, Drake_etal_2019}; 2) amphistomy is more common high light environments \citep{Salisbury_1927, Mott_etal_1982, Mott_Michaelson_1991, Peat_Fitter_1994b, Jordan_etal_2014, Bucher_etal_2017, Muir_2018, Drake_etal_2019}; 3) amphistomy is associated with higher stomatal density \citep{Beerling_Kelly_1996, Muir_2018}, which is often a proxy for operational stomatal conductance \citep{Franks_Beerling_2009}; and 4) stomatal ratio is bimodal (see above). Amphistomy is also more common in herbs than woody plants (\cite{Muir_2015, Muir_2018}, but see \cite{Drake_etal_2019}), but I do not address that further in this study.
+
+I examine three models with increasing complexity (Models 1--3). Model 1 assumes no extrinsic ``cost'' of amphistomy. It asks simply whether a tradeoff between carbon gain and water loss can explain the aforementioned empirical observations. Model 2 adds an extrinsic, \textit{ad hoc} cost of amphistomy but is agnostic about the mechanism underlying this cost (see Discussion). Finally, Model 3 assumes that the extrinsic cost of amphistomy is not constant, but covaries with light gradients.
+
+\begin{figure}[h!]
+	\centerline{\includegraphics[width=1\textwidth]{figures/fig1-hypotheses.pdf}}
+	\usefont{T1}{phv}{m}{n}
+	\fontsize{10}{12}
+	\selectfont
+	\caption{General hypotheses for clustering: No clustering occurs when the environment is unimodal and there is one-to-one matching between the environment and trait optima, leading to a unimodal trait distribution (top row, \textbf{A-C}). Clustering can occur if the environment is bimodal even with one-to-one matching between the environment and trait optima (middle row, \textbf{D-F}). Clustering can also occur if the environment is unimodal, but there is a nonlinear relationship between the environment and the trait optimum (bottom row, \textbf{G-I}). These latter two hypotheses are not mutually exclusive and may reinforce or counteract one another.}
+	\label{fig:fig1}
+\end{figure}
+
+%--------------------------------------------------
+% Methods
+%--------------------------------------------------
+
+\section*{Materials and Methods}
+
+I used biophysical and biochemical models of leaf temperature and photosynthesis to solve for the optimal stomatal conductance and stomatal ratio across different environments. The details of the leaf temperature and photosynthetic models are described in more detail elsewhere \citep{Muir_2019b, Muir_2019a}, so I briefly summarize their structure here. A glossary of model inputs and outputs can be found in Tables \ref{table:input} and  \ref{table:output}, respectively. Values of photosynthetic temperature response functions and fixed parameters are described in Tables \ref{table:temp_resp} and \ref{table:model1} -- \ref{table:model3}, respectively.
+
+\subsection*{Leaf temperature model}
+
+I modeled equilibrium leaf temperature using energy budget models \citep[recently reviewed in][]{Gutschick_2016} implemented using the R package \tealeaves~version 0.0.8 \citep{Muir_2019a}. Given a set of leaf parameters, environmental parameters, and physical constants, leaf energy budget models find the leaf temperature (\tleaf) such that the net energy flux in W m$^{-2}$ is balanced:
+
+\begin{equation}
+  \label{eq:energy_budget}
+  R_\mathrm{abs} = S_\mathrm{r} + H + L
+\end{equation}
+
+where $R_\mathrm{abs}$ is the absorbed radiation, $S_\mathrm{r}$ is infrared re-radiation, $H$ is sensible heat loss, and $L$ is latent heat loss. Absorbed radiation and infrared re-radiation are largely determined by the environment and not affected by stomatal traits. Leaf traits, especially leaf size, strongly impact sensible heat flux ($H$), but stomatal traits do not affect these properties directly. Stomatal traits strongly affect the total conductance to water vapor ($g_\mathrm{tw}$), which is proportional to the latent heat lost ($L$) as liquid water vaporizes and exits the leaf as a gas:
+
+\begin{equation}
+  L = h_\mathrm{vap} g_\mathrm{tw} d_\mathrm{wv}
+\end{equation}
+
+\tealeaves~models the latent heat of vaporization ($h_\mathrm{vap}$) as a linear function of temperature \citep{Muir_2019a, Nobel_2009}. $d_\mathrm{wv}$ is the water vapor pressure differential from the inside to the outside of leaf in units of mol m$^{-3}$:
+
+\begin{equation}
+  \label{eq:d_wv}
+  d_\mathrm{wv} = p_\mathrm{leaf} / (R T_\mathrm{leaf}) - RH p_\mathrm{air} / (R T_\mathrm{air})
+\end{equation}
+
+I assume the leaf interior is fully saturated ($p_\mathrm{leaf} = p_\mathrm{sat}$), where the saturation water vapor pressure $p_\mathrm{sat}$ is a function of temperature is calculated using the Goff-Gratch equation \citep{Vomel_2016}. The vapor pressure of air is calculated from the relative humidity ($\mathit{RH}$) as $p_\mathrm{air} = \mathit{RH} p_\mathrm{sat}$. $R$ is the ideal gas constant.
+
+$g_\mathrm{tw}$ is the sum of the parallel lower (usually abaxial) and upper (usually adaxial) conductances in units of m s$^{-1}$, which is the convention in leaf energy budget models:
+
+\begin{equation}
+  \label{eq:g_tw}
+  g_\mathrm{tw} = g_\mathrm{w,lower} + g_\mathrm{w,upper}
+\end{equation}
+
+The conductance to water vapor on each surface (indexed as $j$) is a function of parallel stomatal ($g_{\mathrm{sw},j}$) and cuticular ($g_{\mathrm{uw},j}$) conductances in series with the boundary layer conductance ($g_{\mathrm{bw},j}$). The stomatal and cuticular conductances on the lower surface are:
+
+\begin{align}
+  g_\mathrm{sw,lower} & = [g_\mathrm{sw} (1 - \mathit{SR})] [R (T_\mathrm{leaf} + T_\mathrm{air}) / 2] \\
+  g_\mathrm{uw,lower} & = (g_\mathrm{uw} / 2) [R (T_\mathrm{leaf} + T_\mathrm{air}) / 2]
+\end{align}
+
+Note that the \textit{total} leaf stomatal and cuticular conductances ($g_\mathrm{sw}$ and $g_\mathrm{uw}$ respectively) are in units of \gwunit in keeping with conventions of photosynthetic models (see below). In the above equations, these values are converted to units of m s$^{-1}$ using the ideal gas law for the leaf energy budget model. Stomatal conductance is partitioned among leaf surfaces depending on stomatal ratio ($\mathit{SR}$). When $\mathit{SR} = 0$, all conductance is on the lower surface; when $\mathit{SR} = 1$, all conductance is on the upper surface; when $\mathit{SR} = 0.5$, conductance is evenly divided across surfaces. Cuticular conductance is assumed equal on each leaf surface. The corresponding expressions for the upper surface are:
+
+\begin{align}
+  g_\mathrm{sw,upper} & = (g_\mathrm{sw} \mathit{SR}) [R (T_\mathrm{leaf} + T_\mathrm{air}) / 2] \\
+  g_\mathrm{uw,upper} & = g_\mathrm{uw,lower}
+\end{align}
+
+The boundary layer conductances for each surface differ because free convection differs on each surface \citep{Foster_Smith_1986}:
+
+\begin{equation}
+  g_{\mathrm{bw},j} = \frac{D_w \mathit{Sh}_j}{d}
+\end{equation}
+
+$d$ is the leaf characteristic dimension in m, a physiologically relevant measure of leaf size because it determines heat and mass transfer \citep{Taylor_1975, Leigh_etal_2017}. $D_w$ is the diffusion coefficient of water vapor in air as a function of temperature in units of m$^2$ s$^{-1}$:
+
+\begin{equation} \label{eq:D_x}
+    D_\mathrm{w} = D_\mathrm{w,0} \Big(\frac{T}{273.15}\Big) ^ {\mathit{eT}} \frac{101.3246}{P}
+\end{equation}
+
+Each surface has its own unitless Sherwood number ($\mathit{Sh}$) that is a mix of free and forced convection:
+
+\begin{align}
+  \label{eq:sherwood}
+  \mathit{Sh} ^ {3.5} & = \mathit{Sh}_\mathrm{forced} ^ {3.5} + \mathit{Sh}_\mathrm{free} ^ {3.5} \\
+  \mathit{Sh}_\mathrm{forced} & = \mathit{Nu}_\mathrm{forced} (D_h / D_w) ^ \frac{1}{3} \\
+  \mathit{Sh}_\mathrm{free} & = \mathit{Nu}_\mathrm{free} (D_h / D_w) ^ \frac{1}{4}
+\end{align}
+
+$\mathit{Nu}$ is a dimensionless number for heat transfer \citep{Muir_2019a}. Free convection dominates when the Archimedes number ($\mathit{Ar}$) is greater than 10; forced convection dominates when $\mathit{Ar} \ll 0.1$ \citep{Nobel_2009}. Forced convection is probably most common in nature \citep{Jones_2014}, but free convection can be important for large leaves at low wind speeds \citep[see][for further detail]{Muir_2019a}. Because free convection depends on gravity, horizontally oriented leaves will exchange latent heat differently depending on how transpiration through stomata is distributed between surfaces. $D_h$ is the diffusion coefficient of heat in air a function of temperature in units of m$^2$ s$^{-1}$, calculated following Equation \ref{eq:D_x} with different constants (Table \ref{table:input}).
+
+Transpiration rate (mol H$_2$O m$^{-2}$ s$^{-1}$) is the product of the total conductance to water vapour (Eqn \ref{eq:g_tw}) and the water vapor gradient (Eqn \ref{eq:d_wv}):
+
+\begin{equation}
+  \label{eq:E}
+  E = g_\mathrm{tw} d_\mathrm{wv}
+\end{equation}
+
+\cite{Foster_Smith_1986} previously demonstrated that amphistomatous leaves transpire more water than hypostomatous leaves at low wind speeds, holding total $g_\mathrm{sw}$ constant. To illustrate this result, I analyzed a similar model using \tealeaves~for hypostomatous ($\mathit{SR} = 0$), intermediate ($\mathit{SR} = 0.25$), and amphistomatous ($\mathit{SR} = 0.5$) leaves. I varied wind speed between \Sexpr{round(min(tl_pars$ep$wind), 2)} and \Sexpr{round(max(tl_pars$ep$wind), 2)} m s$^{-1}$ at two light levels, PPFD = \Sexpr{round(leafoptimizer::sun2ppfd(set_units(min(tl_pars$ep$S_sw), "W/m^2"), set_units(0.5), set_units(220, "kJ/mol")), 0)}~(shade) and \Sexpr{round(leafoptimizer::sun2ppfd(set_units(max(tl_pars$ep$S_sw), "W/m^2"), set_units(0.5), set_units(220, "kJ/mol")), 0)}~(sun) \ppfdunit. I fixed other leaf parameters as $\alpha_\mathrm{s} = \Sexpr{tl_pars$lp$abs_s}$, $\alpha_\mathrm{l} = \Sexpr{tl_pars$lp$abs_l}$, $d = \Sexpr{tl_pars$lp$leafsize}$~m, $g_\mathrm{sw} = \Sexpr{tl_pars$lp$g_sw}$~\gwunit, $g_\mathrm{uw} = \Sexpr{tl_pars$lp$g_uw}$~\gwunit. I fixed other environmental parameters where: $P = \Sexpr{tl_pars$ep$P}$~kPa, $\mathit{RH} = \Sexpr{tl_pars$ep$RH}$, $\mathit{r} = \Sexpr{tl_pars$ep$r}$, and $T_\mathrm{air} = \Sexpr{set_units(tl_pars$ep$T_air, degreeC)} ~ ^ \circ$C. Physical constants are described in Table \ref{table:input}. I calculated the ratio of transpiration for an intermediate or amphistomatous leaf ($E_j$) compared to that of hypotstomatous ($E_\textrm{hypo}$) leaf in the same environment:
+
+\begin{equation}
+  \label{eq:E_ratio}
+  \frac{E_j}{E_\textrm{hypo}}
+\end{equation}
+
+Source code for these simulations is available on GitHub (https://github.com/cdmuir/stomata-light) and will be archived after peer-review on Zenodo (https://zenodo.org/).
+
+\subsection*{Photosynthesis model}
+
+The \photo~package version 0.0.3 \citep{Muir_2019b} implements the Farquhar-von Caemmerer-Berry biochemical model of C$_3$ photosynthesis \citep{Farquhar_etal_1980}, which has been reviewed extensively elsewhere \citep[e.g.][]{Sharkey_etal_2007}. Following the treatment of \cite{Buckley_DiazEspejo_2015}, the photosynthetic demand rate ($A_D$) is the minimum of Rubisco-, RuBP regeneration-, and TPU-limited assimilation rates:
+
+\begin{align}
+  A & = (1 - \Gamma^* / C_\mathrm{chl}) \textrm{min}(W_\mathrm{carbox}, W_\mathrm{regen}, W_\mathrm{tpu}) - R_\mathrm{d} \\
+  W_\mathrm{carbox} & = \frac{V_\mathrm{cmax} C_\mathrm{chl}}{C_\mathrm{chl} + K_\mathrm{m}} \\
+  W_\mathrm{regen} & = \frac{J C_\mathrm{chl}}{4 C_\mathrm{chl} + 8 \Gamma^*} \\
+  W_\mathrm{tpu} & = \frac{3 V_\mathrm{tpu} C_\mathrm{chl}}{C_\mathrm{chl} - \Gamma^*}
+\end{align}
+
+$K_\mathrm{m}$ is the Michaelis-Menten constant:
+
+\begin{equation}
+  K_\mathrm{m} = K_\mathrm{C} (1 + O / K_\mathrm{O})
+\end{equation}
+
+$J$ is a function Photosynthetic photon flux density (PPFD), obtained by solving the equation:
+
+\begin{equation}
+  0 = \theta_J J ^ 2 - J (J_\mathrm{max} + \phi_J \mathrm{PPFD}) + J_\mathrm{max} \phi_J \mathrm{PPFD}
+\end{equation}
+
+The photosynthetic supply rate ($A_S$) is the product of the total conductance to CO$_2$ ($g_\mathrm{tc}$ [\gcunit]) and CO$_2$ drawdown ($C_\mathrm{air} - C_\mathrm{chl}$):
+
+\begin{equation}
+  A_S = g_\mathrm{tc} (C_\mathrm{air} - C_\mathrm{chl})
+\end{equation}
+
+To facilitate modeling differentiated upper and lower leaf anatomies, \photo~allows users to partition boundary, cuticular, stomatal, and mesophyll conductances separately to each surface \citep[similar to][]{Jones_1985}. On surface $j$, there are two parallel conductances, the cuticular conductance ($g_{\mathrm{uc},j}$) and the in-series conductances through mesophyll ($g_{\mathrm{mc},j}$), stomata ($g_{\mathrm{sc},j}$), and boundary layer ($g_{\mathrm{bc},j}$). Following rules for circuits \citep{Nobel_2009}, the total conductance for surface $j$ is:
+
+\begin{equation}
+  g_{\mathrm{c},j} = g_{\mathrm{uc},j} + (1 / (r_{\mathrm{m},j} + r_{\mathrm{sc},j} + r_{\mathrm{bc},j}))
+\end{equation}
+
+To simplify the formula, I substitute resistance for conductance ($r_x = g_x ^ {-1}$) above. Boundary layer conductances to CO$_2$ are calculated as described above for water vapor, but accounting for the different diffusivity of CO$_2$ and water vapor in air (see Supporting Information for detail). The other conductances are partitioned between layers using the following definitions:
+
+\begin{align}
+  g_\mathrm{cx,lower} & = g_\mathrm{cx} (1 / (1 + k_\mathrm{cx})) \\
+  g_\mathrm{cx,upper} & = g_\mathrm{cx} (k_\mathrm{cx} / (1 + k_\mathrm{cx})) \\
+  g_\mathrm{cx} & = g_\mathrm{cx,lower} + g_\mathrm{cx,upper}
+\end{align}
+
+$g_\mathrm{cx}$ is the total leaf conductance through component $x$, partitioned to lower or upper leaf portions.
+
+I modeled photosynthetic temperature responses following \citep{Bernacchi_etal_2002, Buckley_DiazEspejo_2015}. Values of temperature-dependent parameters are provided at \tref~as input (Table \ref{table:input}) and computed at \tleaf~(Table \ref{table:output}) to determine the photosynthetic rate. The photosynthetic rate $A$ at a given \tleaf~is determined by solving for the $C_\mathrm{chl}$ that balances photosynthetic supply and demand rates ($A_d = A_s$).
+
+\cite{Parkhurst_1978}, \cite{Gutschick_1984b}, and \citep{Jones_1985} previously demonstrated that amphistomatous leaves should photosynthesize more than hypostomatous leaves holding other factors constant. To illustrate this result, I used the \photo~package to model photosynthetic rate for hypostomatous ($\mathit{SR} = 0$), intermediate ($\mathit{SR} = 0.25$), and amphistomatous ($\mathit{SR} = 0.5$) leaves. I varied $T_\mathrm{leaf}$ between \Sexpr{round(set_units(min(ph_pars$lp$T_leaf), degreeC), 2)} and \Sexpr{round(set_units(max(ph_pars$lp$T_leaf), degreeC), 2)} $^ \circ$C at two levels of $g_\mathrm{sw}$, \Sexpr{round(leafoptimizer::gc2gw(min(ph_pars$lp$g_sc), set_units(1.29e-05, "m^2/s"), set_units(2.12e-05, "m^2/s"), unitless = TRUE), 0)}~(low) and \Sexpr{round(leafoptimizer::gc2gw(max(ph_pars$lp$g_sc), set_units(1.29e-05, "m^2/s"), set_units(2.12e-05, "m^2/s"), unitless = TRUE), 0)}~(high) \gwunit. I fixed other leaf parameters as $g_\mathrm{mc,25} = \Sexpr{ph_pars$lp$g_mc25}$~\gcunit, $g_\mathrm{uc} = \Sexpr{ph_pars$lp$g_uc}$~\gcunit, $d = \Sexpr{ph_pars$lp$leafsize}$~m, $J_\mathrm{max,25} = \Sexpr{ph_pars$lp$J_max25}$~\aunit, $\phi_J = \Sexpr{ph_pars$lp$phi_J}$, $R_\mathrm{d,25} = \Sexpr{ph_pars$lp$R_d25}$~\aunit, $\theta_J = \Sexpr{ph_pars$lp$theta_J}$, $V_\mathrm{cmax,25} = \Sexpr{ph_pars$lp$V_cmax25}$~\aunit, $V_\mathrm{tpu,25} = \Sexpr{ph_pars$lp$V_tpu25}$~\aunit. I fixed other environmental parameters where: $C_\mathrm{air} = \Sexpr{ph_pars$ep$C_air}$~Pa, $O = \Sexpr{ph_pars$ep$O}$~kPa, $P = \Sexpr{ph_pars$ep$P}$~kPa, PPFD $= \Sexpr{ph_pars$ep$PPFD}$~\ppfdunit, $\mathit{RH} = \Sexpr{ph_pars$ep$RH}$, $T_\mathrm{air} = \Sexpr{set_units(ph_pars$ep$T_air, degreeC)} ~ ^ \circ$C, and $u = \Sexpr{ph_pars$ep$wind}$~m s$^{-1}$. Physical constants are described in Table \ref{table:input}.
+
+Source code for these simulations is available on GitHub (https://github.com/cdmuir/stomata-light) and will be archived after peer-review on Zenodo (https://zenodo.org/).
+
+\subsection*{Optimization of stomatal traits}
+
+Biophysical and biochemical models like those implemented in \tealeaves~and\photo~help understand structure-function relationships, but cannot by themselves predict ecological and evolutionary variation. Optimality models with a defined ``goal'' function make testable predictions about ecological and evolutionary responses to the environment \citep{Givnish_1986}. In plant physiology, optimality models often assume that plants will modify stomatal traits through acclimation (within generations) or adaptation (between generations) to maximize carbon gain minus costs (usually water loss) that have a carbon exchange rate \citep{Cowan_Farquhar_1977, Buckley_etal_2017b}. Assuming a marginal carbon cost of water $\lambda_\mathrm{w}$ [\lwunit], the total carbon gain rate per area to maximize is:
+
+\begin{equation}
+  A - E \lambda_\mathrm{w} ^ {-1}
+\end{equation}
+
+The optimal solution will be where $\partial A / \partial E = \lambda_\mathrm{w} ^ {-1}$. Traditionally, models find the $g_\mathrm{sw}$ that optimizes carbon gain and water loss, but other traits and other costs can be added for multivariate optimization. Since $\mathit{SR}$ also affects carbon gain and water loss, I jointly find the optimum of both stomatal traits, denoted $g_\mathrm{sw,opt}$ and $\mathit{SR}_\mathrm{opt}$. I also included an extrinsic cost of upper stomata ($\lambda_\mathit{SR}$ [\lsunit]) in some models (see below):
+
+\begin{equation}
+  \label{eq:carbon_balance}
+  A - E \lambda_\mathrm{w} ^ {-1} - g_\mathrm{sw,upper} \lambda_\mathit{SR} ^ {-1}
+\end{equation}
+
+$\lambda_\mathit{SR}$ must have Pa in the denominator so that $g_\mathrm{sc,upper} \lambda_\mathit{SR}$ has units \aunit. Note that the cost of amphistomy is proportional to the \textit{inverse} of $\lambda_\mathit{SR}$. When $\lambda_\mathit{SR}^{-1} > 0$, this implies that stomatal conductance through the upper surface incurs some additional cost compared to the same conductance through the lower surface (see Discussion). I refer to $\lambda_\mathit{SR}^{-1}$ as an `extrinsic' cost of amphistomy because it the cost is an assumption and not an intrinsic part of the mechanistic model.
+
+I developed an R package \leafoptimizer~to integrate leaf energy budget models in \tealeaves~and C$_3$ photosynthesis models in \photo~and solve for optimal stomatal traits. \leafoptimizer~takes leaf parameters, environmental parameters, carbon costs, and physical constants as input (Table \ref{table:input}). \leafoptimizer~uses the R package \pkg{optimx} \citep{Nash_Varadhan_2011, Nash_2014} to numerically solve for the trait optima by iteratively finding 1) the equilibrium \tleaf~then 2) the $E$, $A$, and net carbon balance (Eq. \ref{eq:carbon_balance}) at that \tleaf~until net carbon balance is maximized. For larger leaves under high light and warm temperatures, $g_\mathrm{sw,opt}$ was often unrealistically high to cool leaves down closer to the optimum for photosynthesis (results not shown). Therefore, I set the maximum $g_\mathrm{sw,opt}$ to 16.43 \gwunit, equal to $g_\mathrm{sc} = 10$ \gcunit).
+
+A development version of \leafoptimizer~is currently available on GitHub (https://github.com/cdmuir/leafoptimizer). A stable version of \leafoptimizer~will be released on the Comprehensive R Archive Network (CRAN, https://cran.r-project.org/) after peer-review. The version used for this manuscript will be archived on Zenodo (https://zenodo.org/) upon publication. I will continue developing the package and depositing revised source code on GitHub between stable release versions. Other scientists can contribute code to improve \leafoptimizer~or modify the source code on their own installations for a more fully customized implementation. A future publication will more fully describe the package and its potential applications. \leafoptimizer~depends on several other R packages: \pkg{crayon} \citep{Csardi_2017}, \pkg{dplyr} \citep{Wickham_etal_2018}, \pkg{glue} \citep{Hester_2018}, \pkg{furrr} \citep{Vaughan_Dancho_2018}, \pkg{future} \citep{Bengtsson_2018}, \pkg{ggplot} \citep{Wickham_2016}, \pkg{magrittr} \citep{Bache_Wickham_2014}, \pkg{plyr} \citep{Wickham_2011a}, \pkg{purrr} \citep{Henry_Wickham_2018b}, \pkg{rlang} \citep{Henry_Wickham_2018a}, \pkg{stringr} \citep{Wickham_2018}, \pkg{tibble} \citep{Muller_Wickham_2019}, \pkg{tidyr} \citep{Wickham_Henry_2018}, \pkg{tidyselect} \citep{Henry_Wickham_2018c}, \pkg{units} \citep{Pebesma_etal_2016}, and \pkg{zeallot} \citep{Teetor_2018}.
+
+Source code for all simulations described below is available on GitHub (https://github.com/cdmuir/stomata-light) and will be archived after peer-review on Zenodo (https://zenodo.org/).
+
+\subsection*{Model 1: no extrinsic cost of amphistomy}
+
+Amphistomy increases $E$ most at low wind speed and in large leaves \citep[][this study]{Foster_Smith_1986}, conditions most common in forest understories where amphistomy is rare \citep{Salisbury_1927, Peat_Fitter_1994b, Muir_2018}. Amphistomy also increases $A$ more under high light when CO$_2$ limits photosynthesis \citep{Jones_1985, Mott_etal_1982}. Therefore, I hypothesized that the increased cost of $E$ and decreased photosynthetic benefit could drive the empirical observation that amphistomy is more common in high light environments \citep{Salisbury_1927, Mott_etal_1982, Mott_Michaelson_1991, Peat_Fitter_1994b, Jordan_etal_2014, Bucher_etal_2017, Muir_2018, Drake_etal_2019}. To test whether this hypothesis is plausible, I solved for $g_\mathrm{sw,opt}$ and $\mathit{SR}_\mathrm{opt}$ across a light gradient (PPFD = \Sexpr{round(min(m1_vars$PPFD), 0)} -- \Sexpr{round(max(m1_vars$PPFD), 0)}) at low (\Sexpr{round(min(model1_output$wind), 1)} m s$^{-1}$) and moderate (\Sexpr{round(max(model1_output$wind), 1)} m s$^{-1}$) wind speeds for small ($d = \Sexpr{m1_leafsize[1]}$ m), medium ($d = \Sexpr{m1_leafsize[2]}$ m), and large ($d = \Sexpr{m1_leafsize[3]}$ m) leaves. These values were chosen to ensure that free convection would be important at low wind speeds (see Results). The cost of water was $\lambda_\mathrm{w} = 0.001$ \lwunit, while the extrinsic cost of upper stomata was 0. Other model variables and parameters are described in Table \ref{table:model1}.
+
+\subsection*{Model 2: extrinsic cost of amphistomy}
+
+A fitness cost of upper stomata would explain the rarity of amphistomy in nature \citep{Metcalfe_Chalk_1979, Peat_Fitter_1994b, Muir_2015, Muir_2018, Drake_etal_2019}. Model 1 tests whether a cost emerges instrinsically as a result of how stomatal ratio affect $A$ and $E$. In this model, I add an instrinsic cost to upper stomata by varying $\lambda_\mathit{SR} ^ {-1} = \Sexpr{str_c(m2_SR, collapse = ", ")}$ \lsunit. Higher $\lambda_\mathit{SR} ^ {-1}$ (lower $\lambda_\mathit{SR}$) corresponds with a higher cost of conductance through upper stomata. Other parameters were the same or similar to Model 1 (Table \ref{table:model2}).
+
+\subsection*{Model 3: extrinsic cost of amphistomy covaries with light}
+
+Covariation between fitness costs and benefits can generate threshold-like clines because there is a very narrow window of environments in which intermediate phenotypes are optimal. We tested this by covarying PPFD and $\lambda_\mathit{SR}$, otherwise using the same parameter values as in Model 2 (Table \ref{table:model3}). PPFD varied between \Sexpr{str_c(round(range(m3_vars$PPFD), 0), collapse = " -- ")}. I selected $\lambda_\mathit{SR}$ values that weakly, moderately, or strongly covaried with PPFD. $\lambda_\mathit{SR}$ varied the least (\Sexpr{str_c(signif(range(1 / m3_vars$SR[m3_vars$cov_strength == "weak"]), 2), collapse = " -- ")}) under the weak-covariance scenario and the most (\Sexpr{str_c(signif(range(1 / m3_vars$SR[m3_vars$cov_strength == "strong"]), 2), collapse = " -- ")}) under the strong-covariance scenario (Fig. \ref{fig:figS2}).
+
+\clearpage
+
+%--------------------------------------------------
+% Table: Parameter inputs
+%--------------------------------------------------
+
+\begin{table}
+\caption{Parameter inputs for \leafoptimizer. Each parameter has a mathematical symbol used in the text, the R character string used in the \leafoptimizer~package, a brief description, and the units. For physical constants, a value is provided where applicable, though users can modify these if desired. Conductances to CO$_2$ ($g_\mathrm{c}$) are interconvertible with those for water vapour $g_\mathrm{w}$ and PPFD is interconvertible with $S_\mathrm{sw}$ (see Supporting Information).}
+\label{table:input}
+\end{table}
+
+%\begin{table}[ht]
+\begin{center}
+{\setstretch{1}
+%\resizebox{6.5in}{!}{
+\begin{longtable*}{p{0.5in} p{1in} p{3in} p{1in}}
+
+  \toprule
+  Symbol              & R character     & Description & Units \\
+  \midrule
+
+  \multicolumn{4}{l}{\textbf{Leaf parameters:}} \\
+  \\
+
+  $d$ &
+    \code{leafsize} &
+    leaf characteristic dimension &
+    m \\
+  $\alpha_\mathrm{s}$ &
+    \code{abs\_s} &
+    absorbtivity of shortwave radiation (0.3 - 4 $\mu$m) &
+    none \\
+  $\alpha_\mathrm{l}$ &
+    \code{abs\_l} &
+    absorbtivity of longwave radiation (4 - 80 $\mu$m) &
+    none \\
+  $g_\mathrm{mc,25}$ &
+    \code{g\_mc25} &
+    mesophyll conductance to CO$_2$ at \tref &
+    \gcunit \\
+  $g_\mathrm{uc}$ &
+    \code{g\_uc} &
+    cuticular conductance to CO$_2$ &
+    \gcunit \\
+  $g_\mathrm{uw}$ &
+    \code{g\_uw} &
+    cuticular conductance to water vapor &
+    \gwunit $^\dagger$ \\
+  $\Gamma^*_{25}$ &
+    \code{gamma\_star25} &
+    chloroplastic CO$_2$ compensation point at \tref &
+    Pa \\
+  $J_\mathrm{max,25}$ &
+    \code{J\_max25} &
+    potential electron transport at \tref &
+    \aunit \\
+  $K_\mathrm{C,25}$ &
+    \code{K\_C25} &
+    Michaelis constant for carboxylation at \tref &
+    Pa \\
+  $K_\mathrm{O,25}$ &
+    \code{K\_O25} &
+    Michaelis constant for oxygenation at \tref &
+    kPa \\
+  $k_\mathrm{mc}$ &
+    \code{k\_mc} &
+    partition of $g_\mathrm{mc}$ to lower mesophyll &
+    none \\
+  $k_\mathrm{uc}$ &
+    \code{k\_uc} &
+    partition of $g_\mathrm{uc}$ to lower surface &
+    none \\
+  $\phi_J$ &
+    \code{phi\_J} &
+    initial slope of the response of $J$ to PPFD &
+    none \\
+  $R_\mathrm{d,25}$ &
+    \code{R\_d25} &
+    nonphotorespiratory CO$_2$ release at \tref &
+    \aunit \\
+   $\theta_J$ &
+    \code{theta\_J} &
+    curvature factor for light-response curve &
+    none \\
+  $V_\mathrm{cmax,25}$ &
+    \code{V\_cmax25} &
+    maximum rate of carboxylation at \tref &
+    \aunit \\
+  $V_\mathrm{tpu,25}$ &
+    \code{V\_tpu25} &
+    rate of triose phosphate utilization at \tref &
+    \aunit \\
+
+  \\
+  \multicolumn{4}{l}{\textbf{Environmental parameters:}} \\
+  \\
+
+  $C_\textrm{air}$ &
+    \code{C\_air} &
+    atmospheric CO$_2$ concentration &
+    Pa \\
+  $E_q$ &
+    \code{E\_q} &
+    energy per mole quanta &
+    kJ mol$^{-1}$ \\
+  $f_\mathrm{PAR}$ &
+    \code{f\_par} &
+    fraction of $S_\mathrm{sw}$ that is photosynthetically active radiation (PAR) &
+    none \\
+  $O$ &
+    \code{O} &
+    atmospheric O$_2$ concentration &
+    kPa \\
+  $P$ &
+    \code{P} &
+    atmospheric pressure &
+    kPa \\
+  PPFD &
+    \code{PPFD} &
+    photosynthetic photon flux density &
+    \ppfdunit \\
+  $r$ &
+    \code{r} &
+    reflectance for short-wave irradiance (albedo) &
+    none \\
+  $\mathit{RH}$ &
+    \code{RH} &
+    relative humidity &
+    none \\
+  $S_\mathrm{sw}$ &
+    \code{S\_sw} &
+    incident short-wave (solar) radiation flux density &
+    W m$^{-2}$ \\
+  $T_\mathrm{air}$ &
+    \code{T\_air} &
+    air temperature &
+    K \\
+  $u$ &
+    \code{wind} &
+    windspeed &
+    m s$^{-1}$ \\
+
+  \\
+  \multicolumn{4}{l}{\textbf{Physical constants:}} \\
+  \\
+
+  $a, b, c, d$ &
+    \code{a, b, c, d} &
+    coefficients for calculating $\mathit{Nu}$ and $\mathit{Sh}$ numbers &
+    none \\
+  $c_p$ &
+    \code{c\_p} &
+    heat capacity of air &
+    1.01 J g$^{-1}$ K$^{-1}$ \\
+  $D_{c,0}$ &
+    \code{D\_c0} &
+    diffusion coefficient for CO$_2$ in air at 0 °C &
+    $12.9 \times 10^{-6}$ m$^2$ s$^{-1}$ \\
+  $D_{h,0}$ &
+    \code{D\_h0} &
+    diffusion coefficient for heat in air at 0 °C &
+    $19.0 \times 10^{-6}$ m$^2$ s$^{-1}$ \\
+  $D_{m,0}$ &
+    \code{D\_m0} &
+    diffusion coefficient for momentum in air at 0 °C &
+    $13.3 \times 10^{-6}$ m$^2$ s$^{-1}$ \\
+  $D_{w,0}$ &
+    \code{D\_w0} &
+    diffusion coefficient for water vapor in air at 0 °C &
+    $21.2 \times 10^{-6}$ m$^2$ s$^{-1}$ \\
+  $\epsilon$ &
+    \code{epsilon} &
+    ratio of water to air molar masses &
+    0.622 \\
+  $\mathit{eT}$ &
+    \code{eT} &
+    exponent for temperature dependence of diffusion &
+    1.75 \\
+  $G$ &
+    \code{G} &
+    gravitational acceleration &
+    9.8 m s$^{-2}$ \\
+  $R$ &
+    \code{R} &
+    ideal gas constant &
+    8.3144598 J mol$^{-1}$ K$^{-1}$ \\
+  $R_\mathrm{air}$ &
+    \code{R\_air} &
+    specific gas constant for dry air &
+    287.058 J kg$^{-1}$ K$^{-1}$ \\
+  $\sigma$ &
+    \code{s} &
+    Stephan-Boltzmann constant &
+    $5.67 \times 10 ^ {-8}$ W m$^{-2}$ K$^{-4}$ \\
+
+\hline
+\multicolumn{4}{p{\textwidth}}{$^\dagger$ conductances are presented in molar units for consistency with literature on photosynthesis but are converted to m s$^{-1}$ using the ideal gas law (see text for details) to match conductance to heat transfer.}
+
+\end{longtable*}}
+\end{center}
+
+%\end{table}
+
+%--------------------------------------------------
+% Table: Parameter outputs
+%--------------------------------------------------
+
+\begin{table}[ht]
+\caption{Calculated parameter outputs for \leafoptimizer. Each parameter has a mathematical symbol used in the text, the R character string used in the \leafoptimizer~package, a brief description, and the units. Note that $g_\mathrm{sc,opt}$ is interconvertible with $g_\mathrm{sw,opt}$ and $k_\mathrm{sc,opt}$ is interconvertible with $\mathit{SR}_\mathrm{opt}$ (see Supporting Information).}
+\begin{center}
+\resizebox{6.5in}{!}{
+\begin{tabular}{llll}
+
+  \toprule
+  Symbol              & R character     & Description & Units \\
+  \midrule
+
+  \\
+  \multicolumn{4}{l}{\textbf{Optimized leaf parameters:}} \\
+  \\
+
+  $g_\mathrm{sc,opt}$ &
+    \code{g\_sc} &
+    optimal stomatal conductance to CO$_2$ &
+    \gcunit \\
+  $g_\mathrm{sw,opt}$ &
+    \code{g\_sw} &
+    optimal stomatal conductance to water vapor &
+    \gwunit \\
+  $k_\mathrm{sc,opt}$ &
+    \code{k\_sc} &
+    optimal partition of $g_\mathrm{sc,opt}$ to lower surface &
+    none \\
+  $\mathit{SR}_\mathrm{opt}$ &
+    \code{sr} &
+    optimal stomatal ratio &
+    none \\
+
+  \\
+  \multicolumn{4}{l}{\textbf{Leaf parameters:}} \\
+  \\
+
+  $A$ &
+    \code{A} &
+    photosynthetic rate &
+    \aunit \\
+  $C_\mathrm{chl}$ &
+    \code{C\_chl} &
+    chloroplastic CO$_2$ concentration &
+    Pa \\
+  $E$ &
+    \code{E} &
+    transpiration rate &
+    mol H$_2$O m$^{-2}$~s$^{-1}$ \\
+  $g_\mathrm{h}$ &
+    \code{g\_h} &
+    boundary layer conductance to heat &
+    m s$^{-1}$ \\
+  $g_\mathrm{bc}$ &
+    \code{g\_bc} &
+    boundary layer conductance to CO$_2$ &
+    \gcunit \\
+  $g_\mathrm{bw}$ &
+    \code{g\_bw} &
+    boundary layer conductance to water vapor &
+    \gwunit \\
+  $g_\mathrm{mc}$ &
+    \code{g\_mc} &
+    mesophyll conductance to CO$_2$ at \tleaf &
+    \gcunit \\
+  $g_\mathrm{tc}$ &
+    \code{g\_tc} &
+    total conductance to CO$_2$ &
+    \gcunit \\
+  $g_\mathrm{tw}$ &
+    \code{g\_tw} &
+    total conductance to water vapor &
+    \gwunit \\
+  $\Gamma^*$ &
+    \code{gamma\_star} &
+    chloroplastic CO$_2$ compensation point at \tleaf &
+    Pa \\
+  $\mathit{Gr}$ &
+    \code{Gr} &
+    Grashof number &
+    none \\
+  $H$ &
+    \code{H} &
+    sensible heat flux density &
+    W m$^{-2}$ \\
+  $J_\mathrm{max}$ &
+    \code{J\_max} &
+    potential electron transport at \tleaf &
+    \aunit \\
+  $K_\mathrm{C}$ &
+    \code{K\_C} &
+    Michaelis constant for carboxylation at \tleaf &
+    Pa \\
+  $K_\mathrm{O}$ &
+    \code{K\_O} &
+    Michaelis constant for oxygenation at \tleaf &
+    kPa \\
+  $L$ &
+    \code{L} &
+    latent heat flux density &
+    W m$^{-2}$ \\
+  $\mathit{Nu}$ &
+    \code{Nu} &
+    Nusselt number &
+    none \\
+  $R_\mathrm{abs}$ &
+    \code{R\_abs} &
+    total absorbed radiation &
+    W m$^{-2}$ \\
+  $R_\mathrm{d}$ &
+    \code{R\_d} &
+    nonphotorespiratory CO$_2$ release at \tleaf &
+    \aunit \\
+  $\mathit{Re}$ &
+    \code{Re} &
+    Reynolds number &
+    none \\
+  $\mathit{Sh}$ &
+    \code{Sh} &
+    Sherwood number &
+    none \\
+  $S_\mathrm{r}$ &
+    \code{S\_r} &
+    longwave re-radiation &
+    W m$^{-2}$ \\
+  \tleaf &
+    \code{T\_leaf} &
+    leaf temperature &
+    K \\
+  $V_\mathrm{cmax}$ &
+    \code{V\_cmax} &
+    maximum rate of carboxylation at \tleaf &
+    \aunit \\
+  $V_\mathrm{tpu5}$ &
+    \code{V\_tpu} &
+    rate of triose phosphate utilization at \tleaf &
+    \aunit \\
+
+  \\
+  \multicolumn{4}{l}{\textbf{Temperature-dependent physical parameters:}} \\
+  \\
+
+  $D_{c}$ &
+    \code{D\_c} &
+    diffusion coefficient for CO$_2$ in air at \tleaf &
+    m$^2$ s$^{-1}$ \\
+  $D_{h}$ &
+    \code{D\_h} &
+    diffusion coefficient for heat in air at \tleaf &
+    m$^2$ s$^{-1}$ \\
+  $D_{m}$ &
+    \code{D\_m} &
+    diffusion coefficient for momentum in air at \tleaf &
+    m$^2$ s$^{-1}$ \\
+  $D_{w}$ &
+    \code{D\_w} &
+    diffusion coefficient for water vapor in air at \tleaf &
+    m$^2$ s$^{-1}$ \\
+
+\bottomrule
+
+\end{tabular}}
+\end{center}
+
+\label{table:output}
+\end{table}
+
+%--------------------------------------------------
+% Results
+%--------------------------------------------------
+
+\section*{Results}
+
+\subsection*{Amphistomy increases transpiration and CO$_2$ assimilation}
+
+Output from \tealeaves~and \photo~packages recapitulate previous work demonstrating that amphistomy increases transpiration ($E$, Fig. \ref{fig:fig2}A) and photosynthetic CO$_2$ assimilation ($A$, Fig. \ref{fig:fig2}B). When free convection is important at low wind speed and/or large leaf size, amphistomatous leaves have up to 1.5 times greater $E$ than a hypostomatous leaf in the same conditions. The difference in $E$ between stomatal ratio phenotypes is less when forced convection prevails at higher wind speeds. Amphistomatous leaves increase photosynthetic rate, all else being else, by providing an additional parallel pathway for CO$_2$ diffusion. Interestingly, leaves with intermediate phenotypes (stomatal ratio [$\mathit{SR}$] = 0.25) increase photosynthetic rate nearly as much as completely amphistomatous leaves ($\mathit{SR}$ = 0.5, Fig. \ref{fig:fig2}B).
+
+%--------------------------------------------------
+% Figure 2
+%--------------------------------------------------
+
+\begin{figure}[ht]
+	\centerline{\includegraphics[width=1\textwidth]{figures/fig2A-tleaf.pdf}}
+	\centerline{\includegraphics[width=1\textwidth]{figures/fig2B-photo.pdf}}
+\end{figure}
+
+\clearpage
+
+\begin{figure}[t!]
+	\usefont{T1}{phv}{m}{n}
+	\fontsize{10}{12}
+	\selectfont
+	\caption{Amphistomy increases transpiration and CO$_2$ assimilation. \textbf{A}) Output from \tealeaves~shows that amphistomatous (Stomatal Ratio $(\mathit{SR}) = 0.5$, solid black lines) and intermediate ($\mathit{SR} = 0.25$, dashed black lines) leaves transpire more water than hypostomatous leaves ($E_j / E_\textrm{hypo} > 1$) when stomatal conductance and other leaf/environmental parameters are constant. The effect of $\mathit{SR}$ is especially strong at very low wind speeds (\textit{x}-axis) when free convection is significant (low wind speed, $\mathit{Ar} > 10$); it less important for most leaves in which forced convection (high wind speed, $\mathit{Ar} < 0.1$) and turbulent flow ($\mathit{Re} > 4000$, right of dashed line) dominates heat and mass transfer. The effect is similar in both shade (Photosynthetic photon flux density $(\mathrm{PPFD}) = \Sexpr{round(leafoptimizer::sun2ppfd(set_units(min(tl_pars$ep$S_sw), "W/m^2"), set_units(0.5), set_units(220, "kJ/mol")), 0)}$~\ppfdunit, left facet) and sun ($\mathrm{PPFD} = \Sexpr{round(leafoptimizer::sun2ppfd(set_units(max(tl_pars$ep$S_sw), "W/m^2"), set_units(0.5), set_units(220, "kJ/mol")), 0)}$~\ppfdunit, right facet), although total transpiration is greater in the sun (results not shown). \textbf{B}). Output from \photo~shows that amphistomatous leaves (solid lines) increase photosynthetic rate compared to intermediate (dashed lines) and hypostomatous (dotted lines) leaves under the same conditions. The values of $\mathit{SR}$ are the same as \textbf{A}. Stomatal conductance was set to $g_\mathrm{sw}$ = \Sexpr{round(leafoptimizer::gc2gw(min(ph_pars$lp$g_sc), set_units(1.29e-05, "m^2/s"), set_units(2.12e-05, "m^2/s"), unitless = TRUE), 0)}~(low) and \Sexpr{round(leafoptimizer::gc2gw(max(ph_pars$lp$g_sc), set_units(1.29e-05, "m^2/s"), set_units(2.12e-05, "m^2/s"), unitless = TRUE), 0)}~(high) \gwunit. In all conditions, photosynthetic rate peaks at an intermediate temperature. See Materials and Methods for other parameter values.}
+	\label{fig:fig2}
+\end{figure}
+
+\subsection*{Output from the \leafoptimizer~package}
+
+The R package \leafoptimizer~integrates biophysical and biochemical models of leaf temperature and C$_3$ photosynthesis, which are also implemented in R as standalone packages, \tealeaves~\citep{Muir_2019a} and \photo~\citep{Muir_2019b}. I used \leafoptimizer~to find the optimal stomatal conductance ($g_\mathrm{sw,opt}$) and ratio ($\mathit{SR}_\mathrm{opt}$) under various environmental conditions, but it is more general purpose tool that could be used for optimization modeling.
+
+\subsection*{Model 1: Amphistomy is almost always favored when there is no cost of upper stomata}
+
+In this model, I used \leafoptimizer~to solve for the $g_\mathrm{sw,opt}$ and $\mathit{SR}_\mathrm{opt}$ that optimally balances $A$ and $E$ across a range of environmental conditions (Table \ref{table:model1}), given a cost of water, but no extrinsic cost of upper stomata.
+
+In almost all areas of parameter space, the additional $A$ associated with amphistomy outweighs the increased $E$ (Fig. \ref{fig:fig2}). A greater fraction of stomata on the lower surface can be beneficial only when reduced transpiration heats the leaf up closer to the optimum for photosynthesis (\tleaf~$\approx 25 ^ \circ$C) given the temperature response parameters assumed in this study [Fig. \ref{fig:fig2}B, Table \ref{table:temp_resp}]). This only occurred at suboptimal air temperatures for large leaves in still air at low to moderate irradiance (Fig. \ref{fig:fig3}). Forced convection dominated heat and mass transfer in smaller leaves or leaves in moving air (Figs. \ref{fig:fig3}, \ref{fig:figS1}). Only with the transition to free convection in large leaves and still air does reducing the conductance on the upper surface dramatically decrease transpiration (Fig. \ref{fig:fig2}A). However, this beneficial effect of having lower stomatal conductance on the upper surface goes away under high irradiance because \tleaf~rises toward the optimal temperature for photosynthesis. Hence, amphistomy is always favored at high irradiance when there is no extrinsic cost of upper stomata (Fig. \ref{fig:fig3}).
+
+%--------------------------------------------------
+% Figure 3
+%--------------------------------------------------
+
+\begin{figure}[ht]
+	\centerline{\includegraphics{figures/fig3-model1A.pdf}}
+	\usefont{T1}{phv}{m}{n}
+	\fontsize{10}{12}
+	\selectfont
+	\caption{Model 1 shows that amphistomy is almost always optimal when there is no extrinsic cost. The optimal stomatal ratio $\mathit{SR}_\mathrm{opt}$ (\textit{y}-axis) along a PPFD for small ($d = \Sexpr{m1_leafsize[1]}$ m, solid lines), medium ($d = \Sexpr{m1_leafsize[2]}$ m, dashed lines), and large ($d = \Sexpr{m1_leafsize[3]}$ m, dotted lines) leaves. In moving air ($u = \Sexpr{max(model1_output$wind)}$ m s$^{-1}$, upper facet), amphistomy is always favored; all lines overlap at $\mathit{SR}_\mathrm{opt} \approx 0.5$. In still air ($u = \Sexpr{min(model1_output$wind)}$ m s$^{-1}$, lower facet), $\mathit{SR}_\mathrm{opt} < 0.5$ only occurs for large leaves in partial shade. Only results for \tleaf~= \tref~and $J_\mathrm{max,25} = 75$ shown, but results are qualitatively similar for other variable combinations. See Table \ref{table:model1} for other parameter values.}
+	\label{fig:fig3}
+\end{figure}
+
+\subsection*{Model 2: an extrinsic cost of amphistomy produces correlations with light}
+
+Model 1 demonstrated that without an extrinsic cost, amphistomy is nearly always optimal. However, under the same leaf and environmental parameters as Model 1, an extrinsic cost leads to many situations in which hypostomy or intermediate $\mathit{SR}$ are optimal (Fig. \ref{fig:fig4}A). Under low light, hypostomy is better unless the cost of amphistomy is very low, but under high light, $\mathit{SR}_\mathrm{opt}$ depends strongly on $\lambda_\mathit{SR}$. When the cost is low, an intermediate $\mathit{SR}_\mathrm{opt}$ occurs at most light levels; when the cost is high, $\mathit{SR}_\mathrm{opt}$ is always near 0 (hypostomy). This model also predicts some covariation between $\mathit{SR}_\mathrm{opt}$ and $g_\mathrm{sw,opt}$. At low light, both values are predicted to be low; at high light, both values are higher (Fig. \ref{fig:fig4}).
+
+%--------------------------------------------------
+% Figure 4
+%--------------------------------------------------
+
+\begin{figure}[ht]
+	\centerline{\includegraphics{figures/fig4-model2.pdf}}
+	\usefont{T1}{phv}{m}{n}
+	\fontsize{10}{12}
+	\selectfont
+	\caption{An extrinsic cost of amphistomy generates covariation between sunlight, stomatal ratio, and stomatal conductance. \textbf{A}) Model 2 predicts that optimal stomatal ratio (\textit{y}-axis) increases with sunlight (\textit{x}-axis). The optimal value depends on the cost of amphistomy ($\lambda_\mathit{SR}^{-1}$): high costs (triangles) favor hypostomy ($\mathit{SR}_\mathrm{opt} \approx 0$) over a broad range of light levels; low costs (circles) favor an intermediate value ($\mathit{SR}_\mathrm{opt} \approx 0.3$) at most light levels. \textbf{B}) Optimal stomatal conductance ($g_\mathrm{sw}$ [\gwunit], \textit{y}-axis) increases with sunlight, although the pattern is complex. The cost of amphistomy had relatively little effect on $g_\mathrm{sw}$, because all three curves follow similar trajectories. See Table \ref{table:model2} for other parameter values.}
+	\label{fig:fig4}
+\end{figure}
+
+\subsection*{Model 3: low costs of amphistomy at high light can produce threshold-like clines}
+
+Compared to Model 2, covariation between costs of amphistomy and light produced stronger threshold-like clines between light and $\mathit{SR}_\mathrm{opt}$ (Fig. \ref{fig:fig5}). With strong covariance, complete hypostomy ($\mathit{SR}_\mathrm{opt} = 0$) was optimal under low light and high $\lambda_\mathit{SR}^{-1}$; complete amphistomy ($\mathit{SR}_\mathrm{opt} = 0.5$) was optimal under high light and low $\lambda_\mathit{SR}^{-1}$. The correlation between $\mathit{SR}_\mathrm{opt}$ and $g_\mathrm{sw,opt}$ was similar to Model 2.
+
+%--------------------------------------------------
+% Figure 5
+%--------------------------------------------------
+
+\begin{figure}[ht]
+	\centerline{\includegraphics{figures/fig5-model3.pdf}}
+	\usefont{T1}{phv}{m}{n}
+	\fontsize{10}{12}
+	\selectfont
+	\caption{Strong covariance between an extrinsic cost of amphistomy and sunlight [``Cov(Cost, Light)''] generates threshold-like clines between sunlight, stomatal ratio, and stomatal conductance. \textbf{A}) Model 3 predicts that optimal stomatal ratio (\textit{y}-axis) increases with sunlight (\textit{x}-axis). When the covariance between costs and light is strong (circles), hypostomy is favored at low light, amphistomy is favored at high light, and there is a nonlinear transition between the two ends. Conversely, when the covariance is low (triangles), intermediate values of $\mathit{SR}_\mathrm{opt}$ are favored at high light, similar to Model 2. \textbf{B}) Optimal stomatal conductance ($g_\mathrm{sw}$ [\gwunit], \textit{y}-axis) increases with sunlight, although the pattern is complex. The covariance between cost and light had relatively little effect on $g_\mathrm{sw}$, because all three curves follow similar trajectories. See Table \ref{table:model3} for other parameter values.}
+	\label{fig:fig5}
+\end{figure}
+
+%--------------------------------------------------
+% Table summarizing results
+%--------------------------------------------------
+
+\newcolumntype{R}{>{\centering}X}
+
+\begin{table}[ht]
+  \caption{Which model accodomates empirical observations? The empirical observations are that amphistomy is rare, correlated with light habitat, correlated with stomatal density, and is bimodal. See Introduction for further detail. A `\checkmark' indicates that the model can explain this observation.}
+  \begin{center}
+  \begin{tabularx}{1\textwidth}{l c R R c}
+
+  \toprule
+   & \multicolumn{4}{c}{\textbf{Empirical observations}} \\
+   \multicolumn{1}{r}{\textit{Amphistomy is:}} &
+   Rare &
+   Cor with light &
+   Cor with stomatal density &
+   Bimodal \\
+  \midrule
+  Model 1: No cost of $\mathit{SR}$ &
+           &        &        & \\
+  Model 2: Cost of $\mathit{SR}$ &
+    \checkmark & \checkmark & \checkmark &        \\
+  Model 3: Covarying cost of $\mathit{SR}$ &
+    \checkmark & \checkmark & \checkmark & \checkmark \\
+  \bottomrule
+
+  \end{tabularx}
+  \end{center}
+
+  \label{table:summary}
+\end{table}
+
+%--------------------------------------------------
+% Discussion
+%--------------------------------------------------
+
+\section*{Discussion}
+
+I used three optimality models based on the biophysics and biochemistry of leaf temperature and photosynthesis to predict stomatal ratio ($\mathit{SR}_\mathrm{opt}$) and conductance ($g_\mathrm{sw,opt}$) across light gradients. I draw three substantial conclusions about the evolution of stomatal traits that inform more general questions about phenotypic evolution.
+
+First, a tradeoff between increased photosynthetic CO$_2$ assimilation ($A$, \ref{fig:fig2}B) and water loss ($E$, Fig. \ref{fig:fig2}A) does not explain why amphistomy rare because the benefits almost always outweigh the costs (Model 1, Table \ref{table:summary}). Previous modeling and experiments already demonstrated the physiological effects of amphistomy on $A$ and $E$ \citep{Parkhurst_1978, Gutschick_1984b, Foster_Smith_1986, Parkhurst_Mott_1990, Santrucek_etal_2019}, but these models have not been combined for optimality modeling. Hypostomy is sometimes optimal at low wind speed, low/partial sun, and suboptimal temperatures (Fig. \ref{fig:fig3}, \ref{fig:figS1}) because decreased $E$ brings \tleaf~closer to its optimum. However, these restrictive conditions are probably not common in nature; even light wind speeds greater than 1 m s$^{-1}$ would completely eliminate this effect (Fig. \ref{fig:fig3}).
+
+Second, an extrinsic cost of amphistomy ($\lambda_\mathrm{SR}^{-1}$) produces a cline between light and $\mathit{SR}_\mathrm{opt}$ (Model 2, Fig. \ref{fig:fig4}). Under the same parameters in Model 1, no such cline is predicted. A previous phenomenological model also suggested that the cost of amphistomy is important \citep{Muir_2015}, but could not distinguish between an ``intrinsic'' (Model 1) and ``extrinsic'' (Models 2 and 3) cost. The leaf temperature and photosynthesis models in this study indicate that the tradeoff between $A$ and $E$ is not the mechanism explaining stomatal ratio, but future mechanistic models of other processes effected by stomatal ratio (e.g. hydraulic conductance outside the xylem \citep{Buckley_etal_2015, Buckley_etal_2017a, Drake_etal_2019}) may reveal an `intrinsic' cost. Model 2 also explains why stomatal ratio and conductance positively covary along light gradients \citep{Muir_2018}. Both $\mathit{SR}_\mathrm{opt}$ and $g_\mathrm{sw,opt}$ are beneficial under high light because the marginal benefit of increased CO$_2$ supply is greater under high light. I am assuming here that stomatal density is a proxy for operational stomatal conductance \citep{Franks_Beerling_2009}. Hence, optimizing both density and distribution of stomata on a leaf may help plants fully take advantage of high light.
+
+Third, only when the cost of amphistomy covaries with light does a threshold-like trait-environment relationship emerge (Model 3, Fig. \ref{fig:fig5}). Model 2 explains other empirical observations (Table \ref{table:summary}) but fails to explain why intermediate stomatal ratio trait values are rare in nature. Under that model, intermediate values should be common. Only by coupling a benefit of increased $A$ under high light with a low cost of amphistomy in the same environment do we predict discrete clusters of hypo- and amphistomatous leaves (i.e. bimodality). Covariation between costs of amphistomy and light may be the only way in this modeling framework to get phenotypic clusters when the underlying environmental gradient is continuous. I used light as an environmental gradient based on \textit{a priori} hypotheses, but covariation between the cost of amphistomy and another environment or trait could produce qualitatively similar results. For example, amphistomy increases $A$ more in leaves with high resistance to mesophyll CO$_2$ diffusion \citep{Parkhurst_1978}. Covariation between $\lambda_\mathrm{SR}$ and that trait could also produce a similar effect, but would not necessarily explain why amphistomy is common in high light environments.
+
+The goals of optimality models are to accomodate existing observations and generate new testable predictions. Model 3 accomodates existing observations, but is complex and therefore important to evaluate with future empirical tests of its predictions. In particular, the model implicates the importance of covariation between costs and benefits of amphistomy. Hypostomy is favored in low light with low costs of amphistomy, but high light only favors amphistomy ($\mathit{SR}_\mathrm{opt} = 0.5$) when costs are also low. This is important because some proposed costs probably do not covary with light gradients this way, while others likely do. For example, amphistomy can dehydrate the palisade mesophyll when there is strong evaporative demand \citep{Buckley_etal_2017a, Drake_etal_2019}, but this cost should be stronger, not weaker, under high light. Amphistomy may also be costly if it increases susceptibility to foliar pathogens that are more likely to land on the upper surface of a horizontally oriented leaf \citep{Gutschick_1984b, Mckown_etal_2014}. Because many pathogens need a wet leaf microclimate to germinate and grow, a leaf in high light that dries faster is less likely to experience this cost than one in the shade. Hence, if pathogens are the primary cost of amphistomy, then this cost should be higher in shady habitats and lower in sunny habitats, consistent with the assumptions of Model 3. Future work should focus on identifying the abiotic and biotic cost(s) of upper stomata at different light levels under natural conditions. We also need to evaluate how often the distribution of light values is unimodal in nature (hypothesis 2) and the role of developmental constraints on stomatal evolution (hypothesis 1).
+
+There are several important limitations of this study that will need to be addressed in future work. Currently \leafoptimizer~only optimizes stomatal traits while other traits are held constant. But traits such as leaf size, mesophyll conductance, $J_\mathrm{max}$/$V_\mathrm{c,max}$ evolve too. If all these traits could evolve together in the model, we might see different patterns. For example, high light favors thick leaves to capture more photons and greater investment in photosynthetic biochemistry, traits that make increased CO$_2$ supply more advantageous. In this case, a greater benefit rather than increased cost might explain why amphistomy is common at high light. Furthermore, this study did not exhaustively explore relevant parameter space. It is possible that further exploration may reveal patterns not identified here. The model also uses bulk leaf properties of temperature and photosynthesis at one time point, ignoring spatial variation within the leaf and temporal variation in the environment, which might yield different predictions \citep{Buckley_etal_2017a, Earles_etal_2019}. Finally, carbon gain and water loss are not fitness, which is what natural selection cares about. Future theoretical and empirical studies should integrate plant survivorship and reproduction with stomatal function.
+
+Amphistomy is rare despite the fact that it increases photosynthetic rate. Why? Optimality models show this is not because the increased carbon gain is offset by additional water loss. Instead, an additional cost of amphistomy, yet to be identified, must explain why it is rare. Optimality models also predict that amphistomy is common in high light habitats not just because it increases carbon gain but also because the costs of amphistomy are lower. Covariation between costs and benefits may also explain why stomatal ratio forms discrete phenotypic clusters.
+
+\section*{Funding}
+This work was supported by startup funds from the University of Hawai'i.
+
+%--------------------------------------------------
+% References
+%--------------------------------------------------
+
+\bibliography{refs}
+\bibliographystyle{newphyt}
+
+\clearpage
+
+%--------------------------------------------------
+% Supporting Information
+%--------------------------------------------------
+
+\section*{Supporting Information}
+
+% Modify and restart table/figure numbering for SI
+\renewcommand\thefigure{S\arabic{figure}}
+\renewcommand\thetable{S\arabic{table}}
+\renewcommand\theequation{S\arabic{equation}}
+\setcounter{table}{0}
+\setcounter{equation}{0}
+\setcounter{figure}{0}
+
+\subsection*{Photosynthetic temperature responses}
+
+I calcualted $g_\mathrm{mc}$, $\Gamma^*$, $J_\mathrm{max}$, $K_\mathrm{C}$, $K_\mathrm{O}$, $R_\mathrm{d}$, $V_\mathrm{cmax}$, and $V_\mathrm{tpu}$ at \tleaf~(Table \ref{table:output}) based on an assumed value at \tref (Table \ref{table:input}) and temperature response paramters from \citep[Table \ref{table:temp_resp}]{Bernacchi_etal_2002}. Parameters with an exponentially increasing response to temperature were modeled as:
+
+$$ X_{T\mathrm{leaf}} = X_{25} e ^ {\frac{E_a}{R T_\mathrm{ref}} \frac{T_\mathrm{leaf} - 25}{T_\mathrm{leaf} - 273.15}} $$
+
+and those with a humped-shaped response were modeled as:
+
+$$ X_{T\mathrm{leaf}} = X_{25} e ^ {\frac{E_a}{R T_\mathrm{ref}} \frac{T_\mathrm{leaf} - 25}{T_\mathrm{leaf} - 273.15}} \frac{1 + e ^ {[D_s / R - E_d / (R T_\mathrm{ref})]}}{1 + e ^ {(D_s / R) - [E_d / (R (T_\mathrm{leaf} + 273.15))]}}$$
+
+$E_a$ and $E_d$ are the enthalpies of activation and deactivation, respectively, and $D_s$ is the entropy. $T_\mathrm{ref}$ is a reference temperature (\tref) in K; $T_\mathrm{leaf}$ is a reference temperature in $^\circ$C.
+
+%--------------------------------------------------
+% Table of temperature response parameters
+%--------------------------------------------------
+
+\begin{table}[ht]
+\caption{Temperature response parameters}
+\begin{center}
+\begin{tabular}{llll}
+
+  \toprule
+  Parameter         & $E_a$        & $E_d$        & $D_s$                 \\
+                    & J mol$^{-1}$ & J mol$^{-1}$ & J mol$^{-1}$~K$^{-1}$ \\
+  \midrule
+
+  $g_\mathrm{mc}$   & 68901.56     & 487.29       & 148788.56             \\
+  $\Gamma^*$        & 24459.97     & -            & -                     \\
+  $J_\mathrm{max}$  & 56095.18     & 388.04       & 121244.79             \\
+  $K_\mathrm{C}$    & 80989.78     & -            & -                     \\
+  $K_\mathrm{O}$    & 23719.97     & -            & -                     \\
+  $R_\mathrm{d}$    & 40446.75     & -            & -                     \\
+  $V_\mathrm{cmax}$ & 52245.78     & -            & -                     \\
+  $V_\mathrm{tpu}$  & 52245.78     & -            & -                     \\
+
+\bottomrule
+
+\end{tabular}
+\end{center}
+
+\label{table:temp_resp}
+\end{table}
+
+\clearpage
+
+\subsection*{Parameter conversions in \leafoptimizer}
+
+Because of their differing origins and uses, leaf energy budget and photosynthesis models sometimes employ different units for the same parameter. As standalone packages, \tealeaves~and \photo~honor these conventions, but \leafoptimizer~must convert between them. Here I document these conversions.
+
+As noted in the Materials and Methods section, conductance values are converted from m s$^{-1}$ (\tealeaves) to $\mu$mol m$^{-2}$ s$^{-1}$ Pa$^{-2}$ (\photo) using the ideal gas law:
+
+$$ g~[\textrm{m~s}^{-1}] = \frac{g~[\mu \textrm{mol~m}^{-2}~\textrm{s}^{-1}~\textrm{Pa}^{-1}]}{R T} $$
+
+Conductance to water vapor and CO$_2$ are interconverted using the the \code{gc2gw()} and \code{gw2qc()} functions:
+
+$$ g_\mathit{w} = g_\mathit{c} \frac{D_\mathit{w}}{D_\mathit{c}} $$
+$$ g_\mathit{c} = g_\mathit{w} \frac{D_\mathit{c}}{D_\mathit{w}} $$
+
+Incident shortwave radiation ($S_\mathrm{sw}$ [W m$^{-2}$], \tealeaves) is interconverted with PPFD [\ppfdunit] (\photo) following \cite{Gutschick_2016} using the functions \code{sun2ppfd()} and \code{ppfd2sun()}. Shortwave radiation is (at first approximation) the sum of photosynthetically active radiation (PAR) and near-infrared radiation (NIR):
+
+$$ S_\mathrm{sw} = S_\mathrm{PAR} + S_\mathrm{NIR} $$
+
+Most sources \citep[e.g.][]{Jones_2014} assume that $S_\mathrm{PAR} = S_\mathrm{NIR}$ for sunlight, so $f_\mathrm{PAR} = 0.5$. To convert PAR to PPFD, divide by the energy per mol quanta. assuming $E_q = 220$ kJ mol$^{-1}$ quanta for PAR:
+
+$$ \mathrm{PPFD} = S_\mathrm{PAR} / E_q = f_\mathrm{PAR} S_\mathrm{sw} / E_q $$
+
+\tealeaves~uses stomatal ratio ($\mathit{SR}$), while \photo~uses a partitioning factor $k_\mathrm{sc}$. These are automatically interconverted as:
+
+$$ k_\mathrm{sc} = \mathit{SR} / (1 - \mathit{SR}) $$
+
+\clearpage
+
+%--------------------------------------------------
+% SI Figures
+%--------------------------------------------------
+
+\subsection*{SI Figures}
+
+\begin{figure}[ht]
+	\centerline{\includegraphics{figures/figS1-model1C.pdf}}
+	\usefont{T1}{phv}{m}{n}
+	\fontsize{10}{12}
+	\selectfont
+	\caption{Environmental conditions that favor hypostomy are rare when there is no extrinsic cost to amphistomy. Each facet plots the Archimedes number (\textit{x}-axis) against leaf temperature (\textit{y}-axis) in moving air ($u = \Sexpr{max(model1_output$wind)}$ m s$^{-1}$, left column) and still air ($u = \Sexpr{max(model1_output$wind)}$ m s$^{-1}$, right column) at three air temperatures: $T_\mathrm{air} = \Sexpr{round(sort(unique(model1_output$T_air))[1] - 273.15, 0)}~^\circ$C (top row), $T_\mathrm{air} = \Sexpr{round(sort(unique(model1_output$T_air))[2] - 273.15, 0)}~^\circ$C, (middle row), and $T_\mathrm{air} = \Sexpr{round(sort(unique(model1_output$T_air))[3] - 273.15, 0)}~^\circ$C (bottom row). Hypostomy reduces transpiration, increasing leaf temperature, which can be beneficial when leaf temperatures are suboptimal for photosynthesis (approximately \tref, horizontal line in all facets). This only occurs at low air temperatures (top row). Furthermore, free convection must be significant (Archimedes number > 0.1, vertical line in all facets). This only occurs for medium and large leaves under high light, which generates a larger leaf-to-air temperature differential. See Table \ref{table:model1} for other parameter values.}
+	\label{fig:figS1}
+\end{figure}
+
+\clearpage
+
+\subsection*{SI Figures}
+
+\begin{figure}[ht]
+	\centerline{\includegraphics{figures/figS2.pdf}}
+	\usefont{T1}{phv}{m}{n}
+	\fontsize{10}{12}
+	\selectfont
+	\caption{Weak, moderate, and strong examples of covariation [``Cov(Cost, Light)''] between light (PPFD, \textit{x}-axis) and the cost of amphistomy ($\lambda_\mathit{SR}$ \lsunit, \textit{y}-axis) used in Model 3. The inverse of $\lambda_\mathit{SR}$ is plotted because as this value increases, the costs of amphistomy are greater. When the covariance is strong, $\lambda_\mathit{SR} ^ {-1}$ has greater range over the same PPFD values compared to when the covariance is weak.}
+	\label{fig:figS2}
+\end{figure}
+
+\clearpage
+
+%--------------------------------------------------
+% SI Tables
+%--------------------------------------------------
+
+\subsection*{SI Tables}
+
+%--------------------------------------------------
+% Table of Model 1 values
+%--------------------------------------------------
+
+\begin{table}[ht]
+\caption{Model 1 variable and parameter values. See Table \ref{table:input} for symbol definitions and values of physical constants.}
+\begin{center}
+\begin{tabular}{lll}
+
+  \toprule
+  Symbol              & Value(s) & Units \\
+  \midrule
+
+  \multicolumn{3}{l}{\textbf{Variables:}} \\
+  \\
+  $d$ &
+    \Sexpr{str_c(m1_leafsize, collapse = ", ")} &
+    m \\
+  $J_\mathrm{max,25}$ &
+    \Sexpr{str_c(sort(unique(m1_vars$J_max25)), collapse = ", ")} &
+    \aunit \\
+  PPFD &
+    \Sexpr{str_c(range(m1_vars$PPFD), collapse = " -- ")} &
+    \ppfdunit \\
+  $u$ &
+    \Sexpr{str_c(sort(unique(m1_vars$wind)), collapse = ", ")} &
+    m s$^{-1}$ \\
+  $V_\mathrm{cmax,25}$ &
+    $2 / 3 ~ J_\mathrm{max,25}$ &
+    \aunit \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Carbon costs:}} \\
+  \\
+
+  $\lambda_\mathrm{w}$ &
+    0.001 &
+    mol CO$_2$ mol${^-1}$ H$_2$O \\
+  $\lambda_\mathit{SR}$ &
+    0 &
+    mol CO$_2$ Pa mol${^-1}$ H$_2$O \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Fixed leaf parameters:}} \\
+  \\
+
+  $\alpha_\mathrm{s}$ &
+    \Sexpr{first(model1_output$abs_s)} &
+    none \\
+  $\alpha_\mathrm{l}$ &
+    \Sexpr{first(model1_output$abs_l)} &
+    none \\
+  $g_\mathrm{mc,25}$ &
+    \Sexpr{first(model1_output$g_mc25)} &
+    \gcunit \\
+  $g_\mathrm{uc}$ &
+    0.1 &
+    \gcunit \\
+  $\Gamma^*_{25}$ &
+    \Sexpr{first(model1_output$gamma_star25)} &
+    Pa \\
+  $K_\mathrm{C,25}$ &
+    \Sexpr{first(model3_output$K_C25)} &
+    Pa \\
+  $K_\mathrm{O,25}$ &
+    \Sexpr{first(model3_output$K_O25)} &
+    kPa \\
+  $k_\mathrm{mc}$ &
+    \Sexpr{first(model1_output$k_mc)} &
+    none \\
+  $k_\mathrm{uc}$ &
+    \Sexpr{first(model1_output$k_uc)} &
+    none \\
+  $\phi_J$ &
+    \Sexpr{first(model1_output$phi_J)} &
+    none \\
+  $R_\mathrm{d,25}$ &
+    \Sexpr{first(model1_output$R_d25)} &
+    \aunit \\
+  $\theta_J$ &
+    \Sexpr{first(model1_output$theta_J)} &
+    none \\
+  $V_\mathrm{tpu,25}$ &
+    \Sexpr{first(model1_output$V_tpu25)} &
+    \aunit \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Fixed environmental parameters:}} \\
+  \\
+
+  $C_\textrm{air}$ &
+    \Sexpr{first(model1_output$C_air)} &
+    Pa \\
+  $E_q$ &
+    \Sexpr{first(model1_output$E_q)} &
+    kJ mol$^{-1}$ \\
+  $f_\mathrm{PAR}$ &
+    \Sexpr{first(model1_output$f_par)} &
+    none \\
+  $O$ &
+    \Sexpr{first(model1_output$O)} &
+    kPa \\
+  $P$ &
+    \Sexpr{first(model1_output$P)} &
+    kPa \\
+  $r$ &
+    \Sexpr{first(model1_output$r)} &
+    none \\
+  $\mathit{RH}$ &
+    \Sexpr{first(model1_output$RH)} &
+    none \\
+
+\bottomrule
+
+\end{tabular}
+\end{center}
+
+\label{table:model1}
+\end{table}
+
+%--------------------------------------------------
+% Table of Model 2 values
+%--------------------------------------------------
+
+\begin{table}[ht]
+\caption{Model 2 variable and parameter values. See Table \ref{table:input} for symbol definitions and values of physical constants.}
+\begin{center}
+\begin{tabular}{lll}
+
+  \toprule
+  Symbol              & Value(s) & Units \\
+  \midrule
+
+  \multicolumn{3}{l}{\textbf{Variables:}} \\
+  \\
+  PPFD &
+    \Sexpr{str_c(range(m2_vars$PPFD), collapse = " -- ")} &
+    \ppfdunit \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Carbon costs:}} \\
+  \\
+
+  $\lambda_\mathrm{w}$ &
+    0.001 &
+    mol CO$_2$ mol${^-1}$ H$_2$O \\
+  $\lambda_\mathit{SR}$ &
+    0.002, 0.00067, 0.0004 &
+    mol CO$_2$ Pa mol${^-1}$ H$_2$O \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Fixed leaf parameters:}} \\
+  \\
+
+  $\alpha_\mathrm{s}$ &
+    \Sexpr{first(model2_output$abs_s)} &
+    none \\
+  $\alpha_\mathrm{l}$ &
+    \Sexpr{first(model2_output$abs_l)} &
+    none \\
+  $d$ &
+    \Sexpr{first(model2_output$leafsize)} &
+    m \\
+  $J_\mathrm{max,25}$ &
+    \Sexpr{first(model2_output$J_max25)} &
+    \aunit \\
+  $g_\mathrm{mc,25}$ &
+    \Sexpr{first(model2_output$g_mc25)} &
+    \gcunit \\
+  $g_\mathrm{uc}$ &
+    0.1 &
+    \gcunit \\
+  $\Gamma^*_{25}$ &
+    \Sexpr{first(model2_output$gamma_star25)} &
+    Pa \\
+  $K_\mathrm{C,25}$ &
+    \Sexpr{first(model3_output$K_C25)} &
+    Pa \\
+  $K_\mathrm{O,25}$ &
+    \Sexpr{first(model3_output$K_O25)} &
+    kPa \\
+  $k_\mathrm{mc}$ &
+    \Sexpr{first(model2_output$k_mc)} &
+    none \\
+  $k_\mathrm{uc}$ &
+    \Sexpr{first(model2_output$k_uc)} &
+    none \\
+  $\phi_J$ &
+    \Sexpr{first(model2_output$phi_J)} &
+    none \\
+  $R_\mathrm{d,25}$ &
+    \Sexpr{first(model2_output$R_d25)} &
+    \aunit \\
+  $\theta_J$ &
+    \Sexpr{first(model2_output$theta_J)} &
+    none \\
+  $u$ &
+    \Sexpr{first(model2_output$wind)} &
+    m s$^{-1}$ \\
+  $V_\mathrm{cmax,25}$ &
+    $2 / 3 ~ J_\mathrm{max,25}$ &
+    \aunit \\
+  $V_\mathrm{tpu,25}$ &
+    \Sexpr{first(model2_output$V_tpu25)} &
+    \aunit \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Fixed environmental parameters:}} \\
+  \\
+
+  $C_\textrm{air}$ &
+    \Sexpr{first(model2_output$C_air)} &
+    Pa \\
+  $E_q$ &
+    \Sexpr{first(model2_output$E_q)} &
+    kJ mol$^{-1}$ \\
+  $f_\mathrm{PAR}$ &
+    \Sexpr{first(model2_output$f_par)} &
+    none \\
+  $O$ &
+    \Sexpr{first(model2_output$O)} &
+    kPa \\
+  $P$ &
+    \Sexpr{first(model2_output$P)} &
+    kPa \\
+  $r$ &
+    \Sexpr{first(model2_output$r)} &
+    none \\
+  $\mathit{RH}$ &
+    \Sexpr{first(model2_output$RH)} &
+    none \\
+
+\bottomrule
+
+\end{tabular}
+\end{center}
+
+\label{table:model2}
+\end{table}
+
+%--------------------------------------------------
+% Table of Model 3 values
+%--------------------------------------------------
+
+\begin{table}[ht]
+\caption{Model 3 variable and parameter values. See Table \ref{table:input} for symbol definitions and values of physical constants.}
+\begin{center}
+\begin{tabular}{lll}
+
+  \toprule
+  Symbol              & Value(s) & Units \\
+  \midrule
+
+  \multicolumn{3}{l}{\textbf{Variables:}} \\
+  \\
+  PPFD &
+    \Sexpr{str_c(round(range(m3_vars$PPFD), 0), collapse = " -- ")} &
+    \ppfdunit \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Carbon costs:}} \\
+  \\
+
+  $\lambda_\mathrm{w}$ &
+    0.001 &
+    mol CO$_2$ mol${^-1}$ H$_2$O \\
+  $\lambda_\mathit{SR}$ &
+    $3.3 \times 10^{-4}$ -- $3.3 \times 10^{-1}$ &
+    % \Sexpr{str_c(signif(range(1 / m3_vars$SR), 2), collapse = " -- ")} &
+    mol CO$_2$ Pa mol${^-1}$ H$_2$O \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Fixed leaf parameters:}} \\
+  \\
+
+  $\alpha_\mathrm{s}$ &
+    \Sexpr{first(model3_output$abs_s)} &
+    none \\
+  $\alpha_\mathrm{l}$ &
+    \Sexpr{first(model3_output$abs_l)} &
+    none \\
+  $d$ &
+    \Sexpr{first(model3_output$leafsize)} &
+    m \\
+  $J_\mathrm{max,25}$ &
+    \Sexpr{first(model3_output$J_max25)} &
+    \aunit \\
+  $g_\mathrm{mc,25}$ &
+    \Sexpr{first(model3_output$g_mc25)} &
+    \gcunit \\
+  $g_\mathrm{uc}$ &
+    0.1 &
+    \gcunit \\
+  $\Gamma^*_{25}$ &
+    \Sexpr{first(model3_output$gamma_star25)} &
+    Pa \\
+  $K_\mathrm{C,25}$ &
+    \Sexpr{first(model3_output$K_C25)} &
+    Pa \\
+  $K_\mathrm{O,25}$ &
+    \Sexpr{first(model3_output$K_O25)} &
+    kPa \\
+  $k_\mathrm{mc}$ &
+    \Sexpr{first(model3_output$k_mc)} &
+    none \\
+  $k_\mathrm{uc}$ &
+    \Sexpr{first(model3_output$k_uc)} &
+    none \\
+  $\phi_J$ &
+    \Sexpr{first(model3_output$phi_J)} &
+    none \\
+  $R_\mathrm{d,25}$ &
+    \Sexpr{first(model3_output$R_d25)} &
+    \aunit \\
+  $\theta_J$ &
+    \Sexpr{first(model3_output$theta_J)} &
+    none \\
+  $u$ &
+    \Sexpr{first(model3_output$wind)} &
+    m s$^{-1}$ \\
+  $V_\mathrm{cmax,25}$ &
+    $2 / 3 ~ J_\mathrm{max,25}$ &
+    \aunit \\
+  $V_\mathrm{tpu,25}$ &
+    \Sexpr{first(model3_output$V_tpu25)} &
+    \aunit \\
+
+  \\
+  \multicolumn{3}{l}{\textbf{Fixed environmental parameters:}} \\
+  \\
+
+  $C_\textrm{air}$ &
+    \Sexpr{first(model3_output$C_air)} &
+    Pa \\
+  $E_q$ &
+    \Sexpr{first(model3_output$E_q)} &
+    kJ mol$^{-1}$ \\
+  $f_\mathrm{PAR}$ &
+    \Sexpr{first(model3_output$f_par)} &
+    none \\
+  $O$ &
+    \Sexpr{first(model3_output$O)} &
+    kPa \\
+  $P$ &
+    \Sexpr{first(model3_output$P)} &
+    kPa \\
+  $r$ &
+    \Sexpr{first(model3_output$r)} &
+    none \\
+  $\mathit{RH}$ &
+    \Sexpr{first(model3_output$RH)} &
+    none \\
+
+\bottomrule
+
+\end{tabular}
+\end{center}
+
+\label{table:model3}
+\end{table}
+
+\end{document}
