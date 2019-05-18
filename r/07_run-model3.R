@@ -79,7 +79,7 @@ if (run) {
     ol <- safely_optimize_leaf(
       c("g_sc", "sr"), carbon_costs, bp, cs, ep, lp, 
       n_init = 2L, 
-      check = TRUE, quiet = FALSE, refit = TRUE, 
+      check = TRUE, quiet = TRUE, refit = TRUE, 
       max_init = 4L
     )
     
