@@ -1,11 +1,7 @@
 rm(list = setdiff(ls(), "run"))
 graphics.off()
 
-# remove before final publication
-# file.copy(
-#   "/Volumes/GoogleDrive/My Drive/resources/bibliography/refs.bib",
-#   "/Volumes/GoogleDrive/My Drive/research/01_active/stomata-light/ms/refs.bib", 
-#   overwrite = TRUE)
+if (file.exists("r/private.R")) source("r/private.R")
 
 # Libraries
 library(cowplot)

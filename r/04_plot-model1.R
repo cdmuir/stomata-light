@@ -60,6 +60,40 @@ gpA
 ggsave("ms/figures/fig3-model1A.pdf", width = 4.5, height = 4.5, 
        useDingbats = FALSE)
 
+## Figure S3: SRopt across PPFD gradient ----
+gpS3 <- ggplot(filter(m1, airtemp == "25 C", biochemistry == "high"), 
+               aes(x = PPFD, y = sr, linetype = leafsize1)) +
+  facet_grid(wind1 ~ .) +
+  geom_line(size = 1, lineend = "round") +
+  # geom_point() +
+  scale_y_continuous(limits = c(0, 0.6), breaks = c(0, 0.25, 0.5)) + 
+  # scale_color_manual(name = "Leaf size", values = palette()[c(1, 3, 5)]) + 
+  scale_linetype_manual(name = "Leaf size", values = 1:3) + 
+  xlab(expression(paste("Sunlight [PPFD, ", mu, "mol quanta ", m^-2~s^-1, "]"))) +
+  ylab("Optimal Stomatal Ratio") +
+  theme_bw() + 
+  theme(
+    axis.ticks.x = element_blank(),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor = element_blank(),
+    legend.position = "top",
+    legend.justification = "center",
+    legend.direction = "horizontal",
+    legend.text = element_text(size = 12),
+    legend.title = element_text(size = 12),
+    legend.title.align = 0.5,
+    legend.key.width = unit(0.5, "in"),
+    strip.text = element_text(size = 12)
+  ) +
+  NULL
+
+gpS3
+
+ggsave("ms/figures/figS3.pdf", width = 4.5, height = 4.5, 
+       useDingbats = FALSE)
+
 ## Figure 3B: gs_opt across PPFD gradient ----
 gpB <- ggplot(filter(m1, airtemp == "25 C", biochemistry == "low"), 
               aes(x = PPFD, y = g_sw, linetype = leafsize1)) +
@@ -93,7 +127,7 @@ gpB
 ggsave("ms/figures/figX-model1B.pdf", width = 4.5, height = 4.5, 
        useDingbats = FALSE)
 
-## Figures SX ----
+## Figures S3: Same as Figure with higher Vcmax/Jmax ----
 
 m1 %<>% mutate(Ar = numeric(1), Gr = numeric(1), Re = numeric(1))
 cs <- tealeaves::make_constants()
@@ -106,18 +140,10 @@ for (i in 1:nrow(m1)) {
   
 }
 
-# THIS IS A GOOD FIGURE
-# T_air, wind, and Ar determine T_leaf
-# SR is only costly (increased evaporation) when Ar > 0.1 (transition to free convection)
-# However, increased evaporation is good when T_leaf > T_opt
-# Some points obviously off
+# Filtered out high temperature because there appears to be some bistability at moderate Ar at this temperature. It would be interesting to figure out why.
 
-df <- m1 %>%
-  filter(Ar > 1e-6,
-         k_mc == 1,
-         T_leaf < 320,
-         !(airtemp == "35 C" & leafsize1 == "large" & wind1 == "still air" & Ar < 1e-2))
-
+df <- m1 %>% filter(convergence == 0, T_air < 308.15)
+  
 gp <- ggplot(df, aes(x = Ar, y = T_leaf - 273.15, color = leafsize1)) +
   facet_grid(airtemp ~ wind1) +
   scale_x_log10(breaks = 10 ^ seq(-3, 1, 2), 
@@ -150,5 +176,5 @@ gp <- ggplot(df, aes(x = Ar, y = T_leaf - 273.15, color = leafsize1)) +
 
 gp
 
-ggsave("ms/figures/figS1-model1C.pdf", width = 6, height = 6, 
+ggsave("ms/figures/figS1-model1C.pdf", width = 6, height = 4, 
        useDingbats = FALSE)

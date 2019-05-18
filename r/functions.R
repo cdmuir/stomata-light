@@ -1,4 +1,5 @@
-safe_detach <- safely(detach)
+safe_detach <- purrr::safely(detach)
+safely_optimize_leaf <- purrr::safely(leafoptimizer::optimize_leaf)
 
 ##### Utility functions for manuscript #########################################
 

@@ -47,7 +47,7 @@ export2ms("tl_pars", "objects")
 
 # Run tleaves or load saved ----
 if (run) {
-  tl <- tleaves(lp, ep, cs, unitless = TRUE, parallel = TRUE)
+  tl <- tleaves(lp, ep, cs, set_units = TRUE, parallel = TRUE)
   write_rds(tl, "ms/objects/tl.rds")
 } else{
   tl <- read_rds("ms/objects/tl.rds")
@@ -57,7 +57,7 @@ if (run) {
 tl_plot <- tl %>%
 
   # Drop units for plotting
-  mutate_if(function(x) inherits(x, what = "units"), drop_units) %>%
+  mutate_if(~ is(.x, "units"), drop_units) %>%
   
   # Factorize stomatal ratio 
   mutate(sr = case_when(
@@ -91,7 +91,7 @@ tl_plot <- tl %>%
 
 # Determine approximate shift from free to mixed to forced convection
 df <- tl %>%
-  mutate_if(~ inherits(.x, "units"), drop_units) %>%
+  mutate_if(~ is(.x, "units"), drop_units) %>%
   mutate(
     log_Ar = log(Ar), 
     log_wind = log(wind), 

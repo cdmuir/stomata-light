@@ -3,12 +3,13 @@ source("r/header.R")
 m2 <- read_csv("ms/objects/model2-output.csv") %>% 
   mutate(sr = plogis(logit_sr),
          cost = case_when(
-           SR == 500 ~ "low",
-           SR == 1500 ~ "medium",
-           SR == 2500 ~ "high"
+           SR == 0.5 ~ "low",
+           SR == 1 ~ "medium",
+           SR == 2 ~ "high"
          ),
          cost = factor(cost, levels = c("low", "medium", "high"))) %>%
-  filter(!(PPFD %in% c(700, 725, 775, 900)))
+  # Remove one aberrant optimization
+  filter(!(cost == "high" & PPFD == 750))
 
 f4a <- ggplot(m2, aes(PPFD, sr, shape = cost)) +
   geom_line() +
@@ -43,7 +44,6 @@ f4b <- ggplot(m2, aes(PPFD, g_sc, shape = cost)) +
   geom_line() +
   geom_point(fill = "white", size = 2) +
   xlab(expression(paste("Sunlight [PPFD, ", mu, "mol quanta ", m^-2~s^-1, "]"))) +
-  # ylab(expression(paste("Optimal Stom Cond [", mu, "mol ", m^-2~s^-1~Pa^-1, "]"))) +
   ylab(expression(paste("Optimal ", italic(g)[sw]))) +
   #scale_color_manual(name = "Cost of Amphistomy", values = palette()[c(1, 3, 5)]) + 
   scale_shape_manual(name = "Cost of Amphistomy", values = c(21, 22, 24)) + 

@@ -4,7 +4,7 @@ Is amphistomy an adaptation to high light? Optimality models of stomatal traits 
 
 This project was developed by [Chris Muir](www.chrisdmuir.com).
 
-More information about the study is available in a preprint which you can find on [biorxiv](https://doi.org/10.1101/XXXXXX) or on [github](https://github.com/cdmuir/stomata-light/blob/master/ms/ms.pdf).
+More information about the study is available in a preprint which you can find on [biorxiv](https://doi.org/10.1101/601377) or on [github](https://github.com/cdmuir/stomata-light/blob/master/ms/ms.pdf).
 
 ## Downloading repository 
 

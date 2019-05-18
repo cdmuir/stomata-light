@@ -2,11 +2,7 @@ source("r/header.R")
 
 m3 <- read_csv("ms/objects/model3-output.csv") %>% 
   mutate(sr = plogis(logit_sr))
-
 m3_vars <- read_rds("ms/objects/m3_vars.rds")
-m3_vars$cov_strength %<>% factor(levels = c("weak", "moderate", "strong"))
-
-m4_vars <- read_rds("ms/objects/m4_vars.rds")
 m3_vars$cov_strength %<>% factor(levels = c("weak", "moderate", "strong"))
 
 m3$cov_strength <- factor(m3_vars$cov_strength, 

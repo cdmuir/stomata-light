@@ -19,8 +19,8 @@ T_air <- 298.15
 wind <- 2
 
 # Costs
-H2O <- 1000
-SR <- c(500, 1500, 2500)
+H2O <- 0.001
+SR <- c(0.5, 1, 2)
 
 m2_vars <- tidyr::crossing(PPFD, SR)
 
@@ -30,35 +30,33 @@ export2ms("m2_vars", "objects")
 
 if (run) { 
   
-  safely_optimize_leaf <- purrr::safely(optimize_leaf)
-  
   nms <- c(
-    "A", "abs_l", "abs_s", "C_air", "C_chl", "carbon_balance", "E", "E_q", 
-    "f_par", "g_mc", "g_mc25", "g_sc", "g_sw", "g_uc", "g_uw", "gamma_star", 
-    "gamma_star25", "H", "J_max", "J_max25", "K_C", "K_C25", "k_mc", "K_O", 
-    "K_O25", "k_sc", "k_uc", "L", "leafsize", "logit_sr", "O", "P", "phi_J", 
-    "PPFD", "r", "R_abs", "R_d", "R_d25", "RH", "S_r", "S_sw", "T_air", 
-    "T_leaf", "theta_J", "V_cmax", "V_cmax25", "V_tpu", "V_tpu25", "wind", 
-    "H2O", "SR", "i"
+    "A", "abs_l", "abs_s", "C_air", "C_chl", "carbon_balance", "convergence", 
+    "E", "E_q", "f_par", "g_mc", "g_mc25", "g_sc", "g_sw", "g_uc", "g_uw",
+    "gamma_star", "gamma_star25", "H", "J_max", "J_max25", "K_C", "K_C25", 
+    "k_mc", "K_O", "K_O25", "k_sc", "k_uc", "L", "leafsize", "logit_sr", "O", 
+    "P", "phi_J", "PPFD", "r", "R_abs", "R_d", "R_d25", "RH", "S_r", "S_sw", 
+    "T_air", "T_leaf", "theta_J", "V_cmax", "V_cmax25", "V_tpu", "V_tpu25", 
+    "wind", "H2O", "SR", "i"
   )
   
   write_lines(str_c(nms, collapse = ","), "ms/objects/model2-output.csv")
   
   pb <- dplyr::progress_estimated(nrow(m2_vars))
-  cs <- make_constants()
-  bp <- make_bakepar()
+  bp <- leafoptimizer::make_bakepar()
+  cs <- leafoptimizer::make_constants()
   
   for (i in 1:nrow(m2_vars)) {
-    
+  
     # Variable levels of biochemical and diffusional constraints
-    lp <- make_leafpar(cs, replace = list(
+    lp <- leafoptimizer::make_leafpar(replace = list(
       g_mc25 = set_units(g_mc25, "umol/m^2/s/Pa"),
       J_max25 = set_units(J_max25, "umol/m^2/s"),
       leafsize = set_units(leafsize, "m"),
       V_cmax25 = set_units(2 / 3 * J_max25, "umol/m^2/s")
     ))
     
-    ep <- make_enviropar(replace = list(
+    ep <- leafoptimizer::make_enviropar(replace = list(
       PPFD = set_units(m2_vars$PPFD[i], "umol/m^2/s"),
       T_air = set_units(T_air, "K"),
       wind = set_units(wind, "m/s")
@@ -66,8 +64,10 @@ if (run) {
     
     carbon_costs <- list(H2O = H2O, SR = m2_vars$SR[i])
     
-    ol <- safely_optimize_leaf(c("g_sc", "logit_sr"), carbon_costs, 
-                               lp, ep, bp, cs, n_init = 1L, quiet = FALSE)
+    ol <- safely_optimize_leaf(c("g_sc", "sr"), carbon_costs, 
+                               bp, cs, ep, lp, n_init = 1L, 
+                               check = TRUE, quiet = TRUE, 
+                               refit = TRUE, max_init = 3L)
     
     if (!is.null(ol$result)) {
       ol$result$H2O <- carbon_costs$H2O

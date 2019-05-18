@@ -9,6 +9,9 @@ safe_detach(package:tealeaves)
 
 # Parameter sets ----
 
+bp <- photosynthesis::make_bakepar()
+cs <- photosynthesis::make_constants(use_tealeaves = FALSE)
+ep <- photosynthesis::make_enviropar(use_tealeaves = FALSE)
 lp <- photosynthesis::make_leafpar(replace = list(
   g_mc25 = units::set_units(3, "umol/m^2/s/Pa"),
   g_sc = leafoptimizer::gw2gc(
@@ -22,10 +25,7 @@ lp <- photosynthesis::make_leafpar(replace = list(
   T_leaf = units::set_units(seq(278.15, 313.15, length.out = 1e2), "K"),
   V_cmax25 = units::set_units(100, "umol/m^2/s"),
   V_tpu25 = units::set_units(200, "umol/m^2/s")
-))
-bp <- photosynthesis::make_bakepar()
-ep <- photosynthesis::make_enviropar()
-cs <- photosynthesis::make_constants()
+), use_tealeaves = FALSE)
 
 ph_pars <- list(cs = cs, lp = lp, ep = ep, bp = bp)
 export2ms("ph_pars", "objects")
@@ -33,7 +33,17 @@ export2ms("ph_pars", "objects")
 # Run photosynthesis or load saved ----
 
 if (run) {
-  ph <- photosynthesis::photosynthesis(lp, ep, bp, cs, parallel = TRUE)
+  ph <- photosynthesis::photosynthesis(
+    leaf_par = lp, 
+    enviro_par = ep, 
+    bake_par = bp, 
+    constants = cs, 
+    use_tealeaves = FALSE,
+    progress = TRUE,
+    quiet = FALSE,
+    set_units = TRUE, 
+    parallel = TRUE
+  )
   write_rds(ph, "ms/objects/ph.rds")
 } else{
   ph <- read_rds("ms/objects/ph.rds")
@@ -42,20 +52,18 @@ if (run) {
 # Plot ----
 
 ph_plot <- ph %>% 
+  mutate(T_leaf = set_units(T_leaf, degreeC)) %>%
+  mutate_if(~ is(.x, "units"), drop_units) %>%
   mutate(
     `Stomatal conductance` = g_sc %>%
-      units::drop_units() %>%
       is_less_than(1) %>%
       if_else("low", "high") %>%
       factor(levels = c("high", "low")),
     `Stomatal ratio` = factor(case_when(
-      units::drop_units(k_sc) == 0 ~ "hypo",
-      units::drop_units(k_sc) == 1/3 ~ "inter",
-      units::drop_units(k_sc) == 1 ~ "amphi"),
-      levels = c("amphi", "inter", "hypo")),
-    T_leaf = T_leaf %>%
-      units::set_units("degreeC") %>%
-      units::drop_units()
+      k_sc == 0 ~ "hypo",
+      k_sc == 1/3 ~ "inter",
+      k_sc == 1 ~ "amphi"),
+      levels = c("amphi", "inter", "hypo"))
   )
 
 Amax <- ph_plot %>% 
