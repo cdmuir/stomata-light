@@ -142,7 +142,7 @@ I used biophysical and biochemical models of leaf temperature and photosynthesis
 
 \subsection*{Leaf temperature model}
 
-I modeled equilibrium leaf temperature using energy budget models \citep[recently reviewed in][]{Gutschick_2016} implemented using the R package \tealeaves~version 1.0.1 \citep{Muir_2019a}. Given a set of leaf parameters, environmental parameters, and physical constants, leaf energy budget models find the leaf temperature (\tleaf) such that the net energy flux in W m$^{-2}$ is balanced:
+I modeled equilibrium leaf temperature using energy budget models \citep[recently reviewed in][]{Gutschick_2016} implemented using the R package \tealeaves~version 1.0.1 \citep{Muir_2019a}. This version is archived on Zenodo (https://doi.org/10.5281/zenodo.2808079). Given a set of leaf parameters, environmental parameters, and physical constants, leaf energy budget models find the leaf temperature (\tleaf) such that the net energy flux in W m$^{-2}$ is balanced:
 
 \begin{equation}
   \label{eq:energy_budget}
@@ -226,7 +226,7 @@ Transpiration rate (mol H$_2$O m$^{-2}$ s$^{-1}$) is the product of the total co
 
 \subsection*{Photosynthesis model}
 
-The \photo~package version 1.0.1 \citep{Muir_2019b} implements the Farquhar-von Caemmerer-Berry biochemical model of C$_3$ photosynthesis \citep{Farquhar_etal_1980}, which has been reviewed extensively elsewhere \citep[e.g.][]{Sharkey_etal_2007}. Following the treatment of \cite{Buckley_DiazEspejo_2015}, the photosynthetic demand rate ($A_D$) is the minimum of Rubisco-, RuBP regeneration-, and TPU-limited assimilation rates:
+The \photo~package version 1.0.1 \citep{Muir_2019b} implements the Farquhar-von Caemmerer-Berry biochemical model of C$_3$ photosynthesis \citep{Farquhar_etal_1980}, which has been reviewed extensively elsewhere \citep[e.g.][]{Sharkey_etal_2007}. This version of \photo~is archived on Zenodo (https://doi.org/10.5281/zenodo.2830688). Following the treatment of \cite{Buckley_DiazEspejo_2015}, the photosynthetic demand rate ($A_D$) is the minimum of Rubisco-, RuBP regeneration-, and TPU-limited assimilation rates:
 
 \begin{align}
   A_D & = (1 - \Gamma^* / C_\mathrm{chl})~\textrm{min}(W_\mathrm{carbox}, W_\mathrm{regen}, W_\mathrm{tpu}) - R_\mathrm{d} \\
@@ -294,7 +294,7 @@ I developed an R package \leafoptimizer~to integrate leaf energy budget models i
 
 $$ X~[\mu \textrm{mol~m}^{-2}~\textrm{s}^{-1}~\textrm{Pa}^{-1}] \times 100~[\textrm{kPa}] \times \frac{10^3~[\textrm{Pa}]}{1~[\textrm{kPa}]} \times \frac{1~[\textrm{mol}]}{10^6~[\mu \textrm{mol}]} = 0.1 X~[\textrm{mol~m}^{-2}~\textrm{s}^{-1}] $$
 
-A current version of \leafoptimizer~is available on GitHub (https://github.com/cdmuir/leafoptimizer). The version used for this manuscript (0.0.1) is archived on Zenodo (https://zenodo.org/). I will continue developing the package and depositing revised source code on GitHub between stable release versions. Other scientists can contribute code to improve \leafoptimizer~or modify the source code on their own installations for a more fully customized implementation. A future publication will more fully describe the package and its potential applications. \leafoptimizer~depends on several other R packages: \pkg{checkmate} \citep{Lang_2017}, \pkg{crayon} \citep{Csardi_2017}, \pkg{dplyr} \citep{Wickham_etal_2018}, \pkg{glue} \citep{Hester_2018}, \pkg{furrr} \citep{Vaughan_Dancho_2018}, \pkg{future} \citep{Bengtsson_2018}, \pkg{ggplot} \citep{Wickham_2016}, \pkg{magrittr} \citep{Bache_Wickham_2014}, \pkg{plyr} \citep{Wickham_2011a}, \pkg{purrr} \citep{Henry_Wickham_2018b}, \pkg{rlang} \citep{Henry_Wickham_2018a}, \pkg{stringr} \citep{Wickham_2018}, \pkg{tibble} \citep{Muller_Wickham_2019}, \pkg{tidyr} \citep{Wickham_Henry_2018}, \pkg{tidyselect} \citep{Henry_Wickham_2018c}, and \pkg{units} \citep{Pebesma_etal_2016}.
+A current version of \leafoptimizer~is available on GitHub (https://github.com/cdmuir/leafoptimizer). The version used for this manuscript (0.0.2) is archived on Zenodo (https://doi.org/10.5281/zenodo.2890925). I will continue developing the package and depositing revised source code on GitHub between stable release versions. Other scientists can contribute code to improve \leafoptimizer~or modify the source code on their own installations for a more fully customized implementation. A future publication will more fully describe the package and its potential applications. \leafoptimizer~depends on several other R packages: \pkg{checkmate} \citep{Lang_2017}, \pkg{crayon} \citep{Csardi_2017}, \pkg{dplyr} \citep{Wickham_etal_2018}, \pkg{glue} \citep{Hester_2018}, \pkg{furrr} \citep{Vaughan_Dancho_2018}, \pkg{future} \citep{Bengtsson_2018}, \pkg{ggplot} \citep{Wickham_2016}, \pkg{magrittr} \citep{Bache_Wickham_2014}, \pkg{plyr} \citep{Wickham_2011a}, \pkg{purrr} \citep{Henry_Wickham_2018b}, \pkg{rlang} \citep{Henry_Wickham_2018a}, \pkg{stringr} \citep{Wickham_2018}, \pkg{tibble} \citep{Muller_Wickham_2019}, \pkg{tidyr} \citep{Wickham_Henry_2018}, \pkg{tidyselect} \citep{Henry_Wickham_2018c}, and \pkg{units} \citep{Pebesma_etal_2016}.
 
 \subsection*{Model 1: no extrinsic cost of amphistomy}
 
