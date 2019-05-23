@@ -176,5 +176,5 @@ gp <- ggplot(df, aes(x = Ar, y = T_leaf - 273.15, color = leafsize1)) +
 
 gp
 
-ggsave("ms/figures/figS1-model1C.pdf", width = 6, height = 4, 
+ggsave("ms/figures/figS2-model1C.pdf", width = 6, height = 4, 
        useDingbats = FALSE)

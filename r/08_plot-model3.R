@@ -32,7 +32,7 @@ fS2 <- ggplot(m3_vars, aes(PPFD, SR, color = cov_strength)) +
 
 fS2
 
-ggsave("ms/figures/figS2.pdf", width = 5, height = 4, useDingbats = FALSE)
+ggsave("ms/figures/figS1.pdf", width = 5, height = 4, useDingbats = FALSE)
 
 # Figure 5 ----
 f5a <- ggplot(m3, aes(PPFD, sr, shape = cov_strength)) +
