@@ -6,7 +6,7 @@ This repository contains source code associated with the manuscript:
 
 Muir CD. 2019. Is amphistomy an adaptation to high light? Optimality models of stomatal traits along light gradients. *Integrative and Comparative Biology*. [doi:10.1093/icb/icz085](http://dx.doi.org/10.1093/icb/icz085).
 
-This project was developed by [Chris Muir](www.chrisdmuir.com).
+This project was developed by [Chris Muir](cdmuir.netlify.com).
 
 Preprints of this manuscript can be found on [biorxiv](https://doi.org/10.1101/601377) and [github](https://github.com/cdmuir/stomata-light/blob/master/ms/ms.pdf).
 
