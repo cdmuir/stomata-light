@@ -8,8 +8,6 @@ Muir CD. 2019. Is amphistomy an adaptation to high light? Optimality models of s
 
 This project was developed by [Chris Muir](https://cdmuir.netlify.com).
 
-Preprints of this manuscript can be found on [biorxiv](https://doi.org/10.1101/601377) and [github](https://github.com/cdmuir/stomata-light/blob/master/ms/ms.pdf).
-
 ## Downloading repository 
 
 1. Download or clone this repository to your machine.
